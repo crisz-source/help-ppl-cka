@@ -1,0 +1,10 @@
+# build do MkDocs
+site/
+
+# Python
+.venv/
+venv/
+__pycache__/
+
+# arquivos locais do Claude Code (worklog, configurações)
+.claude/

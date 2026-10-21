@@ -1,0 +1,27 @@
+# 1. Cluster Architecture, Installation & Configuration (25%)
+
+Um quarto da prova. É o domínio de quem **opera** o cluster: quem pode fazer o quê, como instalar e atualizar, como tirar um nó de serviço e como instalar componentes com Helm e Kustomize.
+
+## Itens do currículo e onde estão
+
+| Item do currículo | Página |
+|---|---|
+| Manage role based access control (RBAC) | [RBAC](rbac.md) |
+| Manage the lifecycle of Kubernetes clusters | [Upgrade com kubeadm](upgrade-kubeadm.md), [Drain, cordon e uncordon](drain-cordon-uncordon.md) |
+| Use Helm and Kustomize to install cluster components | [Helm e Kustomize](helm-kustomize.md) |
+| *(fora da lista explícita atual, ver aviso na página)* | [Backup e restore do etcd](etcd-backup-restore.md) |
+| Prepare underlying infrastructure for installing a Kubernetes cluster | *a fazer* |
+| Create and manage Kubernetes clusters using kubeadm | *a fazer* |
+| Implement and configure a highly-available control plane | *a fazer* |
+| Understand extension interfaces (CNI, CSI, CRI, etc.) | *a fazer* |
+| Understand CRDs, install and configure operators | *a fazer* |
+
+<!-- VERIFICAR: conferir a lista acima contra a versão atual do currículo em https://github.com/cncf/curriculum -->
+
+## Ordem sugerida de estudo
+
+1. **RBAC**: aparece em quase toda prova e é rápido de pontuar.
+2. **Drain/cordon/uncordon**: pré-requisito do upgrade.
+3. **Upgrade com kubeadm**: tarefa longa, vale treinar até virar rotina.
+4. **Helm e Kustomize**: comandos curtos, fáceis de errar por detalhe.
+5. **Backup e restore do etcd**: mesmo fora da lista explícita, ensina a anatomia do control plane e ajuda no Troubleshooting.

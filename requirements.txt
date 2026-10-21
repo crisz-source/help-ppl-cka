@@ -1,0 +1,3 @@
+# MkDocs 2.0 quebra temas e plugins (aviso do próprio mkdocs-material); manter na linha 1.x
+mkdocs>=1.6,<2
+mkdocs-material>=9.7,<10

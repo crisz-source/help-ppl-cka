@@ -1,0 +1,54 @@
+site_name: Estudo CKA em público
+site_description: Preparação para a certificação CKA (Certified Kubernetes Administrator), em português do Brasil.
+site_url: https://crisz-source.github.io/help-ppl-cka/
+repo_url: https://github.com/crisz-source/help-ppl-cka
+repo_name: crisz-source/help-ppl-cka
+
+theme:
+  name: material
+  language: pt-BR
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Modo escuro
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Modo claro
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details          # habilita os blocos recolhíveis "??? success"
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.superfences:
+      custom_fences:          # habilita diagramas ```mermaid
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Início: index.md
+  - "1. Cluster Architecture, Installation & Configuration (25%)":
+      - 01-cluster-architecture/index.md
+      - RBAC: 01-cluster-architecture/rbac.md
+      - Upgrade com kubeadm: 01-cluster-architecture/upgrade-kubeadm.md
+      - Drain, cordon e uncordon: 01-cluster-architecture/drain-cordon-uncordon.md
+      - Backup e restore do etcd: 01-cluster-architecture/etcd-backup-restore.md
+      - Helm e Kustomize: 01-cluster-architecture/helm-kustomize.md
