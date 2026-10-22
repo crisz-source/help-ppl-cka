@@ -53,3 +53,7 @@ nav:
       - Drain, cordon e uncordon: 01-cluster-architecture/drain-cordon-uncordon.md
       - Backup e restore do etcd: 01-cluster-architecture/etcd-backup-restore.md
       - Helm e Kustomize: 01-cluster-architecture/helm-kustomize.md
+  - "3. Services & Networking (20%)":
+      - 03-services-networking/index.md
+      - Services e Endpoints: 03-services-networking/services-endpoints.md
+      - DNS do cluster: 03-services-networking/dns.md

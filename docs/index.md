@@ -12,9 +12,9 @@ Pelos cinco domínios do currículo oficial:
 
 | # | Domínio | Peso |
 |---|---|---|
-| 1 | Cluster Architecture, Installation & Configuration | 25% |
+| 1 | [Cluster Architecture, Installation & Configuration](01-cluster-architecture/index.md) | 25% |
 | 2 | Workloads & Scheduling | 15% |
-| 3 | Services & Networking | 20% |
+| 3 | [Services & Networking](03-services-networking/index.md) | 20% |
 | 4 | Storage | 10% |
 | 5 | Troubleshooting | 30% |
 
