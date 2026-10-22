@@ -22,7 +22,7 @@ São três peças com papéis diferentes:
 | Componentes do control plane (`kube-apiserver`, `kube-controller-manager`, `kube-scheduler`, `etcd`) | São **static Pods**. O `kubeadm upgrade apply` reescreve os manifests em `/etc/kubernetes/manifests/` com a imagem nova, e o kubelet recria os Pods sozinho. |
 | `kubelet` e `kubectl` (pacotes) | Atualizados **por último** em cada nó, via apt. O kubelet é um serviço systemd e precisa ser reiniciado. |
 
-O `kubeadm upgrade apply` também atualiza os addons (CoreDNS e kube-proxy) e, por padrão, **renova os certificados** do control plane.
+O `kubeadm upgrade apply` também atualiza os addons (CoreDNS e kube-proxy) e, por padrão, **renova os certificados** do control plane (ver [Certificados com kubeadm](kubeadm-certs.md)).
 
 ```mermaid
 flowchart TD

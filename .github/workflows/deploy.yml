@@ -27,13 +27,17 @@ jobs:
       - run: pip install -r requirements.txt
       # --strict: link quebrado ou página fora do nav falha o build em vez de publicar errado
       - run: mkdocs build --strict
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      # repo privado no plano Free não tem Pages: só valida o build, sem publicar
+      - if: ${{ !github.event.repository.private }}
+        uses: actions/configure-pages@v6
+      - if: ${{ !github.event.repository.private }}
+        uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
   deploy:
     needs: build
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
