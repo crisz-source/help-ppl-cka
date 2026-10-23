@@ -53,6 +53,16 @@ nav:
       - Drain, cordon e uncordon: 01-cluster-architecture/drain-cordon-uncordon.md
       - Backup e restore do etcd: 01-cluster-architecture/etcd-backup-restore.md
       - Helm e Kustomize: 01-cluster-architecture/helm-kustomize.md
+  - "2. Workloads & Scheduling (15%)":
+      - 02-workloads-scheduling/index.md
+      - "Deployments: rollout, rollback e scale": 02-workloads-scheduling/deployments-rollout.md
+      - ConfigMap e Secret: 02-workloads-scheduling/configmap-secret.md
+      - Requests, limits e QoS: 02-workloads-scheduling/requests-limits-qos.md
+      - ResourceQuota: 02-workloads-scheduling/resourcequota.md
+      - Taints, tolerations e nodeSelector: 02-workloads-scheduling/taints-tolerations-nodeselector.md
+      - Affinity e anti-affinity: 02-workloads-scheduling/affinity.md
+      - DaemonSet, Job, CronJob e StatefulSet: 02-workloads-scheduling/daemonset-job-cronjob-statefulset.md
+      - HPA: 02-workloads-scheduling/hpa.md
   - "3. Services & Networking (20%)":
       - 03-services-networking/index.md
       - Services e Endpoints: 03-services-networking/services-endpoints.md
@@ -60,3 +70,16 @@ nav:
       - NetworkPolicy: 03-services-networking/network-policy.md
       - Ingress: 03-services-networking/ingress.md
       - Gateway API: 03-services-networking/gateway-api.md
+  - "4. Storage (10%)":
+      - 04-storage/index.md
+      - "Volumes em Pods: emptyDir e hostPath": 04-storage/volumes-emptydir-hostpath.md
+      - "PV e PVC: binding e accessModes": 04-storage/pv-pvc.md
+      - StorageClass e provisionamento dinâmico: 04-storage/storageclass.md
+      - "reclaimPolicy: Retain × Delete": 04-storage/reclaim-policy.md
+      - Expansão de PVC: 04-storage/expansao-pvc.md
+  - "5. Troubleshooting (30%)":
+      - 05-troubleshooting/index.md
+      - Logs e eventos: 05-troubleshooting/logs-eventos.md
+      - "Pods: Pending, CrashLoopBackOff, ImagePullBackOff": 05-troubleshooting/pods.md
+      - Nó NotReady: 05-troubleshooting/no-notready.md
+      - Control plane fora: 05-troubleshooting/control-plane.md

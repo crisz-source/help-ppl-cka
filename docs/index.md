@@ -13,16 +13,16 @@ Pelos cinco domínios do currículo oficial:
 | # | Domínio | Peso |
 |---|---|---|
 | 1 | [Cluster Architecture, Installation & Configuration](01-cluster-architecture/index.md) | 25% |
-| 2 | Workloads & Scheduling | 15% |
+| 2 | [Workloads & Scheduling](02-workloads-scheduling/index.md) | 15% |
 | 3 | [Services & Networking](03-services-networking/index.md) | 20% |
-| 4 | Storage | 10% |
-| 5 | Troubleshooting | 30% |
+| 4 | [Storage](04-storage/index.md) | 10% |
+| 5 | [Troubleshooting](05-troubleshooting/index.md) | 30% |
 
 Toda página segue o mesmo formato: **o que é → como funciona por dentro → comandos essenciais → YAML de referência → onde achar na documentação oficial → pegadinhas → exercício no estilo da prova**.
 
 ## Ambiente de prática
 
-- Lab próprio com **kubeadm**: 1 control plane + 2 workers em VMs Azure.
+- Lab próprio com **kubeadm**: 1 control plane + 2 workers em VMs Azure. Estudado em **v1.36**; no treino de upgrade, atualizado para **v1.37**.
 - [Killercoda](https://killercoda.com/) para cenários rápidos e descartáveis.
 
 !!! info "Versões"
