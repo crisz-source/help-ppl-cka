@@ -27,6 +27,17 @@ jobs:
       - run: pip install -r requirements.txt
       # --strict: link quebrado ou página fora do nav falha o build em vez de publicar errado
       - run: mkdocs build --strict
+      # layout 2 (Astro/Starlight em v2/): mesmo conteúdo de docs/, publicado em /v2/
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - run: npm ci
+        working-directory: v2
+      - run: npm run build
+        working-directory: v2
+      - run: cp -r v2/dist site/v2
       # repo privado no plano Free não tem Pages: só valida o build, sem publicar
       - if: ${{ !github.event.repository.private }}
         uses: actions/configure-pages@v6

@@ -203,6 +203,17 @@ kubectl run tmp -n shop --image=busybox:1.36 --rm -it --restart=Never -- wget -q
 curl http://<IP-de-um-nó>:30080                         # de fora, ou de um nó
 ```
 
+Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+
+```console
+$ kubectl get svc frontend-svc -n shop
+NAME           TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+frontend-svc   NodePort   10.96.120.15   <none>        80:30080/TCP   12s
+$ kubectl get endpointslices -n shop -l kubernetes.io/service-name=frontend-svc
+NAME                 ADDRESSTYPE   PORTS   ENDPOINTS               AGE
+frontend-svc-7x2kq   IPv4          8080    10.244.1.5,10.244.2.7   12s
+```
+
 **No lab / Killercoda:**
 
 - No lab Azure: libere a porta 30080 no NSG das VMs e acesse pelo IP público de um worker. Depois acesse pelo IP do **outro** worker, mesmo sem Pod nele. Por padrão (`externalTrafficPolicy: Cluster`), qualquer nó encaminha.

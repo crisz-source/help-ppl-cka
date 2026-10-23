@@ -1,0 +1,272 @@
+/* Tema do layout 2: cara de terminal, acento verde-neon, escuro por padrão e com modo claro. */
+
+:root {
+	--sl-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--sl-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+	--sl-content-width: 50rem;
+
+	/* escuro */
+	--sl-color-accent-low: #0b3b2a;
+	--sl-color-accent: #2fd68f;
+	--sl-color-accent-high: #a5f3cf;
+	--sl-color-white: #f0f6fc;
+	--sl-color-gray-1: #d1d9e0;
+	--sl-color-gray-2: #9da7b3;
+	--sl-color-gray-3: #7d8590;
+	--sl-color-gray-4: #4b535d;
+	--sl-color-gray-5: #2d333b;
+	--sl-color-gray-6: #161b22;
+	--sl-color-black: #0b0f14;
+
+	--cka-ciano: #5eead4;
+	--cka-roxo: #a78bfa;
+	--cka-brilho: rgba(47, 214, 143, 0.35);
+	--cka-borda-terminal: rgba(47, 214, 143, 0.25);
+	--cka-acento-fundo: rgba(47, 214, 143, 0.12);
+	--cka-grade: rgba(240, 246, 252, 0.035);
+}
+
+:root[data-theme='light'] {
+	--sl-color-accent-low: #d3f8e6;
+	--sl-color-accent: #0f8a57;
+	--sl-color-accent-high: #064e33;
+	--sl-color-white: #0b1f17;
+	--sl-color-gray-1: #24292f;
+	--sl-color-gray-2: #424a53;
+	--sl-color-gray-3: #57606a;
+	--sl-color-gray-4: #8c959f;
+	--sl-color-gray-5: #d0d7de;
+	--sl-color-gray-6: #eef1f4;
+	--sl-color-gray-7: #f6f8fa;
+	--sl-color-black: #ffffff;
+
+	--cka-ciano: #0e7490;
+	--cka-roxo: #6d28d9;
+	--cka-brilho: rgba(15, 138, 87, 0.25);
+	--cka-borda-terminal: rgba(15, 138, 87, 0.25);
+	--cka-acento-fundo: rgba(15, 138, 87, 0.1);
+	--cka-grade: rgba(11, 31, 23, 0.04);
+}
+
+/* fundo: grade fina + brilho no topo */
+body {
+	background-color: var(--sl-color-black);
+	background-image:
+		radial-gradient(60rem 28rem at 70% -10%, var(--cka-acento-fundo), transparent 70%),
+		linear-gradient(var(--cka-grade) 1px, transparent 1px),
+		linear-gradient(90deg, var(--cka-grade) 1px, transparent 1px);
+	background-size: auto, 32px 32px, 32px 32px;
+	background-attachment: fixed;
+}
+
+/* backdrop-filter só no cabeçalho: num ancestral, ele vira referência de posição para os
+   elementos position: fixed de dentro (a barra "Nesta página" do celular saía do lugar) */
+.page > header {
+	background-color: color-mix(in srgb, var(--sl-color-black) 82%, transparent);
+	backdrop-filter: blur(8px);
+}
+
+.sidebar-pane,
+.right-sidebar {
+	background-color: color-mix(in srgb, var(--sl-color-black) 92%, transparent);
+}
+
+.site-title {
+	font-family: var(--sl-font-mono);
+	font-weight: 700;
+	letter-spacing: -0.02em;
+}
+
+.site-title::before {
+	content: '>_';
+	color: var(--sl-color-accent);
+	margin-inline-end: 0.4rem;
+}
+
+/* títulos */
+h1,
+.sl-markdown-content :is(h2, h3) {
+	font-family: var(--sl-font-mono);
+	letter-spacing: -0.02em;
+}
+
+/* o Starlight envolve cada h2 num wrapper com o link de âncora; a linha vai no wrapper (largura toda) */
+.sl-markdown-content .sl-heading-wrapper.level-h2 {
+	padding-bottom: 0.35rem;
+	border-bottom: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content h2::before {
+	content: '## ';
+	color: var(--sl-color-accent);
+	opacity: 0.8;
+}
+
+.sl-markdown-content h3::before {
+	content: '### ';
+	color: var(--cka-ciano);
+	opacity: 0.7;
+}
+
+/* menu lateral */
+.sidebar-content summary .group-label,
+.sidebar-content .large {
+	font-family: var(--sl-font-mono);
+	font-size: var(--sl-text-sm);
+}
+
+.sidebar-content a[aria-current='page'] {
+	box-shadow: inset 3px 0 0 var(--sl-color-accent);
+}
+
+/* tabelas */
+/* no celular a tabela continua como bloco com rolagem própria (padrão do Starlight);
+   display: table aqui faria a tabela larga empurrar a página inteira para fora da tela */
+@media (min-width: 50rem) {
+	.sl-markdown-content table {
+		display: table;
+		width: 100%;
+	}
+}
+
+.sl-markdown-content table {
+	border-collapse: separate;
+	border-spacing: 0;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.6rem;
+	overflow: hidden;
+}
+
+.sl-markdown-content :is(th, td) {
+	border: 0;
+	border-bottom: 1px solid var(--sl-color-gray-5);
+}
+
+.sl-markdown-content tr:last-child td {
+	border-bottom: 0;
+}
+
+.sl-markdown-content th {
+	background: var(--cka-acento-fundo);
+	font-family: var(--sl-font-mono);
+	font-size: var(--sl-text-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.sl-markdown-content tbody tr {
+	transition: background 0.15s;
+}
+
+.sl-markdown-content tbody tr:hover {
+	background: var(--sl-color-gray-6);
+}
+
+/* linha de versão no topo de cada página (o blockquote "> **Versão do Kubernetes:** ...") */
+.sl-markdown-content > blockquote:first-child {
+	border-inline-start: 0;
+	background: var(--sl-color-gray-6);
+	border-radius: 0.6rem;
+	padding: 0.45rem 1rem;
+	font-family: var(--sl-font-mono);
+	font-size: var(--sl-text-xs);
+	color: var(--sl-color-gray-2);
+}
+
+/* "??? success Solução": cartão que abre com animação */
+.sl-markdown-content details.recolhivel {
+	border: 1px solid var(--cka-borda-terminal);
+	border-radius: 0.6rem;
+	background: var(--cka-acento-fundo);
+	padding: 0;
+	overflow: hidden;
+}
+
+.sl-markdown-content details.recolhivel > summary {
+	cursor: pointer;
+	list-style: none;
+	padding: 0.7rem 1rem;
+	font-family: var(--sl-font-mono);
+	font-weight: 700;
+	color: var(--sl-color-accent-high);
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+}
+
+.sl-markdown-content details.recolhivel > summary::-webkit-details-marker {
+	display: none;
+}
+
+.sl-markdown-content details.recolhivel > summary::before {
+	content: '▸';
+	transition: rotate 0.2s;
+}
+
+.sl-markdown-content details.recolhivel[open] > summary::before {
+	rotate: 90deg;
+}
+
+.sl-markdown-content details.recolhivel > summary::after {
+	content: 'clique para revelar';
+	margin-inline-start: auto;
+	font-weight: 400;
+	font-size: var(--sl-text-xs);
+	color: var(--sl-color-gray-3);
+}
+
+.sl-markdown-content details.recolhivel[open] > summary::after {
+	content: 'ocultar';
+}
+
+.sl-markdown-content details.recolhivel > :not(summary) {
+	margin-inline: 1rem;
+}
+
+.sl-markdown-content details.recolhivel > :last-child {
+	margin-bottom: 1rem;
+}
+
+.sl-markdown-content details.recolhivel[open] > :not(summary) {
+	animation: cka-revelar 0.35s ease-out;
+}
+
+@keyframes cka-revelar {
+	from {
+		opacity: 0;
+		translate: 0 -6px;
+	}
+}
+
+/* diagramas Mermaid */
+.sl-markdown-content pre.mermaid {
+	background: var(--sl-color-gray-6);
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.6rem;
+	padding: 1rem;
+	text-align: center;
+	overflow-x: auto;
+}
+
+/* antes do Mermaid desenhar, o texto cru não aparece */
+.sl-markdown-content pre.mermaid:not([data-processed]) {
+	color: transparent;
+	min-height: 8rem;
+}
+
+/* links do conteúdo */
+.sl-markdown-content a:not(.not-content *) {
+	text-decoration-color: var(--cka-borda-terminal);
+	text-underline-offset: 0.2em;
+	transition: text-decoration-color 0.2s;
+}
+
+.sl-markdown-content a:not(.not-content *):hover {
+	text-decoration-color: var(--sl-color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sl-markdown-content details.recolhivel[open] > :not(summary) {
+		animation: none;
+	}
+}

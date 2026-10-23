@@ -8,3 +8,4 @@ Abrir com a extensão Excalidraw do VS Code. Cada diagrama tem um script gerador
 | `02-kubeadm-certs.excalidraw` | `python gerar_02_kubeadm_certs.py 02-kubeadm-certs.excalidraw` | Certificados com kubeadm: quem assina, quem usa e como renovar em 5 passos |
 | `03-services-dns.excalidraw` | `python gerar_03_services_dns.py 03-services-dns.excalidraw` | Services e DNS: do nome (CoreDNS) ao IP fixo (Service) e ao Pod que atende (EndpointSlice + kube-proxy) |
 | `04-trafego-entrada-networkpolicy.excalidraw` | `python gerar_04_trafego_entrada.py 04-trafego-entrada-networkpolicy.excalidraw` | Tráfego de fora até o Pod: Ingress ou Gateway + HTTPRoute escolhem o Service; a NetworkPolicy decide se o Pod aceita |
+| `05-um-conteudo-dois-layouts.excalidraw` | `python gerar_05_dois_layouts.py 05-um-conteudo-dois-layouts.excalidraw` | Um conteúdo, dois sites: docs/ → MkDocs (clássico) e sync-docs → Astro (interativo, /v2/) |

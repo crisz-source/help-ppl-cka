@@ -266,6 +266,18 @@ kubectl run t3 -n shop --image=busybox:1.36 --rm -it --restart=Never -- wget -qO
 kubectl run t4 -n default --image=busybox:1.36 --labels=app=frontend --rm -it --restart=Never -- wget -qO- -T 2 http://$API:8080
 ```
 
+Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+
+```console
+$ kubectl run t1 -n shop --image=busybox:1.36 --labels=app=frontend --rm -it --restart=Never -- wget -qO- -T 2 http://$API:8080
+<html><body>api ok</body></html>
+pod "t1" deleted
+$ kubectl run t3 -n shop --image=busybox:1.36 --rm -it --restart=Never -- wget -qO- -T 2 http://$API:8080
+wget: download timed out
+pod "t3" deleted
+pod shop/t3 terminated (Error)
+```
+
 **No lab / Killercoda:**
 
 - Confira o CNI do lab kubeadm. Se for Flannel, aplique uma default-deny e veja que nada muda; com Calico ou Cilium, o tráfego para.

@@ -203,6 +203,16 @@ curl -H "Host: shop.example.com" http://<IP-do-nó>:<nodePort>/api
 curl -H "Host: shop.example.com" http://<IP-do-nó>:<nodePort>/
 ```
 
+Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+
+```console
+$ kubectl get ingress shop-ingress -n shop
+NAME           CLASS   HOSTS              ADDRESS    PORTS   AGE
+shop-ingress   nginx   shop.example.com   10.0.0.4   80      30s
+$ kubectl get ingress shop-ingress -n shop -o jsonpath='{.spec.rules[0].http.paths[*].pathType}'
+Prefix Prefix
+```
+
 **No lab / Killercoda:**
 
 - No lab kubeadm, instale um controller em modo NodePort e repita o exercício. Libere o NodePort no NSG para testar de fora.

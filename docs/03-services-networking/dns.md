@@ -234,6 +234,18 @@ kubectl get svc nginx-resolver-svc -o wide; kubectl get pod nginx-resolver -o wi
 
 O arquivo pode conter também a linha `pod "test-nslookup" deleted`, gerada pelo `--rm`. Normalmente isso é aceito. Se quiser o arquivo limpo, rode o Pod sem `--rm`, use `kubectl logs` para gravar e apague o Pod depois.
 
+Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+
+```console
+$ cat /root/CKA/nginx.svc
+Server:    10.96.0.10
+Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
+
+Name:      nginx-resolver-svc
+Address 1: 10.96.45.12 nginx-resolver-svc.default.svc.cluster.local
+pod "test-nslookup" deleted
+```
+
 **No lab / Killercoda:**
 
 - Escale o CoreDNS para 0 (`kubectl -n kube-system scale deploy coredns --replicas=0`) e veja o que acontece com a resolução. Depois volte para 2. É treino direto de Troubleshooting.

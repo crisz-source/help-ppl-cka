@@ -1,0 +1,387 @@
+---
+// Página inicial do layout 2: título, terminal de demonstração e cards dos domínios com o
+// progresso de estudo. Os domínios e páginas vêm de docs/index.md e do nav do mkdocs.yml
+// (via src/generated/nav.json), então nada aqui precisa ser editado quando entra conteúdo novo.
+import nav from '../generated/nav.json';
+
+const PAGE_TITLE_ID = '_top'; // id que o Starlight usa no título (não é exportado pelo pacote)
+const { data } = Astro.locals.starlightRoute.entry;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const rota = (slug: string) => `${base}/${slug}/`;
+const comConteudo = nav.dominios.filter((d) => d.indice);
+const totalPaginas = nav.dominios.reduce((s, d) => s + d.paginas.length, 0);
+
+// saída ilustrativa (formato real do kubectl; nomes e idades inventados)
+const demo = [
+	{ cmd: 'kubectl get nodes' },
+	{ out: 'NAME       STATUS   ROLES           AGE' },
+	{ out: 'cp-1       Ready    control-plane   42d' },
+	{ out: 'worker-1   Ready    <none>          42d' },
+	{ out: 'worker-2   Ready    <none>          42d' },
+	{ cmd: 'kubectl get svc -n shop' },
+	{ out: 'NAME      TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE' },
+	{ out: 'web-svc   NodePort   10.96.120.15   <none>        80:30080/TCP   5m' },
+	{ cmd: 'kubectl get netpol -n shop' },
+	{ out: 'NAME                    POD-SELECTOR   AGE' },
+	{ out: 'allow-frontend-to-api   app=api        5m' },
+	{ cmd: 'echo "bora passar na CKA"' },
+	{ out: 'bora passar na CKA' },
+];
+---
+
+<div class="hero-cka">
+	<div class="copy">
+		<p class="kicker">// certified kubernetes administrator</p>
+		<h1 id={PAGE_TITLE_ID} data-page-title>{data.hero?.title ?? data.title}</h1>
+		{data.hero?.tagline && <p class="tagline" set:html={data.hero.tagline} />}
+		<div class="acoes">
+			{
+				comConteudo.map((d, i) => (
+					<a class:list={['botao', i === 0 ? 'primario' : 'secundario']} href={rota(d.indice!)}>
+						{i === 0 ? '▶ ' : ''}Domínio {d.numero}
+					</a>
+				))
+			}
+		</div>
+	</div>
+
+	<div class="demo" aria-label="Terminal de demonstração">
+		<div class="demo-barra"><span></span><span></span><span></span><em>cka@lab: ~</em></div>
+		<pre class="demo-tela" aria-hidden="true">{
+			demo.map((l) =>
+				'cmd' in l ? (
+					<span class="d-linha d-cmd" style={`--letras:${l.cmd!.length}`}><b>$ </b><i>{l.cmd}</i></span>
+				) : (
+					<span class="d-linha d-out">{l.out || ' '}</span>
+				),
+			)
+		}<span class="d-linha d-cursor"><b>$ </b><i class="cursor">▋</i></span></pre>
+	</div>
+</div>
+
+<section class="dominios" aria-labelledby="titulo-dominios">
+	<div class="dominios-topo">
+		<h2 id="titulo-dominios">Domínios da prova</h2>
+		<p class="geral" data-total={totalPaginas}>
+			<span class="geral-num">0/{totalPaginas}</span> páginas estudadas
+		</p>
+	</div>
+	<div class="cards">
+		{
+			nav.dominios.map((d) => {
+				const Tag = d.indice ? 'a' : 'div';
+				return (
+					<Tag class:list={['card', { vazio: !d.indice }]} href={d.indice ? rota(d.indice) : undefined}
+						data-paginas={JSON.stringify(d.paginas.map((p) => p.slug))}>
+						<div class="card-topo">
+							<span class="num">0{d.numero}</span>
+							<span class="peso">{d.peso}%</span>
+						</div>
+						<h3>{d.nome}</h3>
+						<div class="barra-peso" style={`--peso:${d.peso}`} title={`${d.peso}% da nota`} />
+						<p class="status">
+							{d.indice ? (
+								<>
+									<span class="feitas">0</span>/{d.paginas.length} páginas estudadas
+								</>
+							) : (
+								'em breve'
+							)}
+						</p>
+						{d.indice && <div class="barra-progresso"><span /></div>}
+					</Tag>
+				);
+			})
+		}
+	</div>
+</section>
+
+<script>
+	import { lerEstudadas } from '../scripts/progresso';
+
+	// progresso nos cards
+	const estudadas = lerEstudadas();
+	let total = 0;
+	document.querySelectorAll<HTMLElement>('.card[data-paginas]').forEach((card) => {
+		const paginas: string[] = JSON.parse(card.dataset.paginas!);
+		const feitas = paginas.filter((p) => estudadas.has(p)).length;
+		total += feitas;
+		const n = card.querySelector('.feitas');
+		if (n) n.textContent = String(feitas);
+		const barra = card.querySelector<HTMLElement>('.barra-progresso > span');
+		if (barra && paginas.length) barra.style.width = `${(feitas / paginas.length) * 100}%`;
+	});
+	const geral = document.querySelector<HTMLElement>('.geral');
+	if (geral) geral.querySelector('.geral-num')!.textContent = `${total}/${geral.dataset.total}`;
+
+	// terminal de demonstração: uma linha por vez, comandos digitados
+	const tela = document.querySelector<HTMLElement>('.demo-tela');
+	const reduzir = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	if (tela && !reduzir) {
+		const linhas = [...tela.querySelectorAll<HTMLElement>('.d-linha')];
+		const esperar = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+		const rodar = async () => {
+			linhas.forEach((l) => l.classList.remove('on', 'digitando'));
+			tela.classList.add('animando');
+			for (const l of linhas) {
+				l.classList.add('on');
+				if (l.classList.contains('d-cmd')) {
+					l.classList.add('digitando');
+					await esperar(Number(l.style.getPropertyValue('--letras')) * 55 + 450);
+					l.classList.remove('digitando');
+				} else {
+					await esperar(90);
+				}
+			}
+			await esperar(6000);
+			rodar();
+		};
+		rodar();
+	}
+</script>
+
+<style>
+	.hero-cka {
+		display: grid;
+		gap: 2.5rem;
+		align-items: center;
+		padding-block: clamp(1.5rem, 6vmin, 4.5rem) 2rem;
+	}
+	@media (min-width: 62rem) {
+		.hero-cka {
+			grid-template-columns: 1fr 1.05fr;
+		}
+	}
+	.kicker {
+		font: 0.85rem var(--sl-font-mono);
+		color: var(--sl-color-accent);
+		margin: 0;
+	}
+	h1 {
+		margin: 0.4rem 0 0;
+		font-family: var(--sl-font-mono);
+		font-size: clamp(2.1rem, 1.2rem + 3.6vw, 3.6rem);
+		line-height: 1.05;
+		letter-spacing: -0.04em;
+		background: linear-gradient(100deg, var(--sl-color-white) 20%, var(--sl-color-accent) 60%, var(--cka-ciano));
+		-webkit-background-clip: text;
+		background-clip: text;
+		color: transparent;
+	}
+	.tagline {
+		margin-top: 1rem;
+		font-size: clamp(1rem, 0.9rem + 0.5vw, 1.2rem);
+		color: var(--sl-color-gray-2);
+		max-width: 34rem;
+	}
+	.acoes {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.8rem;
+		margin-top: 1.6rem;
+	}
+	.botao {
+		font: 700 0.95rem var(--sl-font-mono);
+		text-decoration: none;
+		padding: 0.7rem 1.2rem;
+		border-radius: 0.55rem;
+		transition: translate 0.15s, box-shadow 0.2s;
+	}
+	.botao:hover {
+		translate: 0 -2px;
+	}
+	.primario {
+		background: var(--sl-color-accent);
+		color: var(--sl-color-black);
+		box-shadow: 0 10px 30px -10px var(--cka-brilho);
+	}
+	.secundario {
+		color: var(--sl-color-accent-high);
+		border: 1px solid var(--cka-borda-terminal);
+	}
+
+	/* terminal de demonstração */
+	.demo {
+		min-width: 0;
+		border-radius: 0.8rem;
+		background: #0d1117;
+		border: 1px solid var(--cka-borda-terminal);
+		box-shadow: 0 30px 70px -30px var(--cka-brilho);
+		overflow: hidden;
+	}
+	.demo-barra {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.6rem 0.9rem;
+		background: #161b22;
+		border-bottom: 1px solid #30363d;
+	}
+	.demo-barra span {
+		width: 0.7rem;
+		height: 0.7rem;
+		border-radius: 50%;
+		background: #ff5f57;
+	}
+	.demo-barra span:nth-child(2) {
+		background: #febc2e;
+	}
+	.demo-barra span:nth-child(3) {
+		background: #28c840;
+	}
+	.demo-barra em {
+		margin-inline: auto;
+		font: normal 0.75rem var(--sl-font-mono);
+		color: #7d8590;
+		translate: -1.5rem 0;
+	}
+	.demo-tela {
+		margin: 0;
+		padding: 1rem 1.1rem 1.2rem;
+		min-height: 19rem;
+		font: 0.78rem/1.55 var(--sl-font-mono);
+		color: #c9d1d9;
+		background: transparent;
+		border: 0;
+		overflow-x: auto;
+	}
+	.d-linha {
+		display: block;
+		white-space: pre;
+	}
+	.d-linha b {
+		color: #2fd68f;
+		font-weight: 700;
+	}
+	.d-cmd i {
+		font-style: normal;
+		color: #f0f6fc;
+	}
+	.d-out {
+		color: #9da7b3;
+	}
+	.animando .d-linha:not(.on) {
+		display: none;
+	}
+	.d-cmd.digitando i {
+		display: inline-block;
+		vertical-align: bottom;
+		overflow: hidden;
+		max-width: 0;
+		border-inline-end: 0.55em solid #2fd68f;
+		animation: demo-digitar calc(var(--letras) * 55ms) steps(var(--letras), end) forwards;
+	}
+	@keyframes demo-digitar {
+		to {
+			max-width: calc(var(--letras) * 1ch);
+		}
+	}
+	.cursor {
+		font-style: normal;
+		color: #2fd68f;
+		animation: demo-piscar 1s step-end infinite;
+	}
+	@keyframes demo-piscar {
+		50% {
+			opacity: 0;
+		}
+	}
+
+	/* cards dos domínios */
+	.dominios {
+		padding-bottom: 1rem;
+	}
+	.dominios-topo {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.5rem 1rem;
+		margin-bottom: 1rem;
+	}
+	.dominios h2 {
+		margin: 0;
+		font: 700 1.4rem var(--sl-font-mono);
+		color: var(--sl-color-white);
+	}
+	.geral {
+		margin: 0;
+		font: 0.85rem var(--sl-font-mono);
+		color: var(--sl-color-gray-2);
+	}
+	.geral-num {
+		color: var(--sl-color-accent);
+		font-weight: 700;
+	}
+	.cards {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr));
+		gap: 1rem;
+	}
+	.card {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 0.55rem;
+		padding: 1.1rem 1.1rem 1rem;
+		border-radius: 0.8rem;
+		background: var(--sl-color-gray-6);
+		border: 1px solid var(--sl-color-gray-5);
+		text-decoration: none;
+		color: inherit;
+		transition: translate 0.2s, border-color 0.2s, box-shadow 0.2s;
+	}
+	a.card:hover {
+		translate: 0 -4px;
+		border-color: var(--sl-color-accent);
+		box-shadow: 0 18px 40px -22px var(--cka-brilho);
+	}
+	.card.vazio {
+		opacity: 0.55;
+		border-style: dashed;
+	}
+	.card-topo {
+		display: flex;
+		justify-content: space-between;
+		font: 700 0.8rem var(--sl-font-mono);
+	}
+	.num {
+		color: var(--sl-color-accent);
+	}
+	.peso {
+		color: var(--sl-color-gray-2);
+	}
+	.card h3 {
+		margin: 0;
+		font: 700 1rem/1.3 var(--sl-font-mono);
+		color: var(--sl-color-white);
+	}
+	.barra-peso {
+		height: 0.3rem;
+		border-radius: 999px;
+		background: linear-gradient(90deg, var(--sl-color-accent), var(--cka-ciano)) 0 0 / calc(var(--peso) * 100% / 30) 100% no-repeat,
+			var(--sl-color-gray-5);
+	}
+	.status {
+		margin: auto 0 0;
+		font: 0.75rem var(--sl-font-mono);
+		color: var(--sl-color-gray-3);
+	}
+	.feitas {
+		color: var(--sl-color-accent);
+		font-weight: 700;
+	}
+	.barra-progresso {
+		height: 0.25rem;
+		border-radius: 999px;
+		background: var(--sl-color-gray-5);
+		overflow: hidden;
+	}
+	.barra-progresso > span {
+		display: block;
+		height: 100%;
+		width: 0;
+		background: var(--cka-roxo);
+		transition: width 0.8s ease-out;
+	}
+</style>

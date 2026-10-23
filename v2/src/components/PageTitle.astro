@@ -1,0 +1,55 @@
+---
+// Título padrão + botão "estudei esta página" (salvo no navegador por src/scripts/progresso.ts).
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+
+const { id } = Astro.locals.starlightRoute;
+const ehIndice = !id.includes('/'); // índice de domínio não conta para o progresso
+---
+
+<Default />
+{
+	!ehIndice && (
+		<button class="estudei" type="button" data-pagina={id} aria-pressed="false">
+			<span class="caixa" aria-hidden="true" />
+			<span class="rotulo">marcar como estudada</span>
+		</button>
+	)
+}
+
+<style>
+	.estudei {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.55rem;
+		margin-top: 0.9rem;
+		padding: 0.35rem 0.85rem 0.35rem 0.6rem;
+		font: 600 var(--sl-text-sm) / 1 var(--sl-font-mono);
+		color: var(--sl-color-gray-2);
+		background: transparent;
+		border: 1px dashed var(--sl-color-gray-4);
+		border-radius: 999px;
+		cursor: pointer;
+		transition: color 0.2s, border-color 0.2s, background 0.2s;
+	}
+	.estudei:hover {
+		color: var(--sl-color-accent-high);
+		border-color: var(--sl-color-accent);
+	}
+	.caixa {
+		width: 1rem;
+		height: 1rem;
+		border: 2px solid currentColor;
+		border-radius: 0.25rem;
+		display: grid;
+		place-items: center;
+	}
+	.estudei[aria-pressed='true'] {
+		color: var(--sl-color-black);
+		background: var(--sl-color-accent);
+		border: 1px solid var(--sl-color-accent);
+	}
+	.estudei[aria-pressed='true'] .caixa::after {
+		content: '✓';
+		font-size: 0.75rem;
+	}
+</style>
