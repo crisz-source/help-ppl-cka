@@ -1,10 +1,5 @@
 /* Terminal animado (src/scripts/terminal.ts) em cima das janelas de terminal do Expressive Code. */
 
-.expressive-code .frame.is-terminal {
-	box-shadow: 0 0 0 1px var(--cka-borda-terminal), 0 18px 40px -24px var(--cka-brilho);
-	border-radius: 0.6rem;
-}
-
 /* linhas ainda não "executadas" ocupam o espaço (sem pulo de layout), mas não aparecem */
 .expressive-code .frame.term-anim .ec-line:not(.visivel) {
 	visibility: hidden;
@@ -16,7 +11,7 @@
 	overflow: hidden;
 	min-width: 0;
 	max-width: 0;
-	border-inline-end: 0.55em solid var(--sl-color-accent);
+	border-inline-end: 0.55em solid var(--sl-color-gray-3);
 	animation:
 		cka-digitar var(--ms) steps(var(--letras), end) forwards,
 		cka-cursor 0.7s step-end infinite;
@@ -49,22 +44,20 @@
 	inset-inline-end: 0.6rem;
 	top: 50%;
 	translate: 0 -50%;
-	font: 600 0.7rem/1 var(--sl-font-mono);
-	letter-spacing: 0.04em;
-	color: var(--sl-color-accent-high);
+	font: 500 0.75rem/1 var(--sl-font);
+	color: var(--sl-color-gray-2);
 	background: transparent;
-	border: 1px solid var(--sl-color-accent);
-	border-radius: 999px;
-	padding: 0.25rem 0.6rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.35rem;
+	padding: 0.25rem 0.55rem;
 	cursor: pointer;
-	opacity: 0.75;
-	transition: opacity 0.2s, background 0.2s;
+	transition: color 0.2s, border-color 0.2s;
 }
 
 .term-rodar:hover,
 .term-rodar:focus-visible {
-	opacity: 1;
-	background: var(--cka-acento-fundo);
+	color: var(--sl-color-white);
+	border-color: var(--sl-color-gray-3);
 }
 
 @media (prefers-reduced-motion: reduce) {

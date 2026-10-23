@@ -7,11 +7,7 @@ async function renderizar() {
 	const escuro = document.documentElement.dataset.theme !== 'light';
 	mermaid.initialize({
 		startOnLoad: false,
-		theme: 'base',
-		fontFamily: 'JetBrains Mono, monospace',
-		themeVariables: escuro
-			? { primaryColor: '#0d2a1f', primaryTextColor: '#e6edf3', primaryBorderColor: '#3fd68f', lineColor: '#5eead4', secondaryColor: '#11233a', tertiaryColor: '#161b22', clusterBkg: '#0f1720', clusterBorder: '#30363d' }
-			: { primaryColor: '#e8fbf1', primaryTextColor: '#0b1f17', primaryBorderColor: '#0f9d63', lineColor: '#0e7490', secondaryColor: '#e0f2fe', tertiaryColor: '#f6f8fa', clusterBkg: '#f6f8fa', clusterBorder: '#d0d7de' },
+		theme: escuro ? 'dark' : 'neutral', // temas padrão do Mermaid, sem cores próprias
 	});
 	await mermaid.run({ nodes: [...blocos] });
 }

@@ -66,7 +66,7 @@ function preparar(frame: HTMLElement) {
 	const botao = document.createElement('button');
 	botao.type = 'button';
 	botao.className = 'term-rodar';
-	botao.textContent = '▶ rodar';
+	botao.textContent = '↻ repetir'; // "▶" vira emoji colorido no Windows
 	botao.title = 'Rodar a animação do terminal de novo';
 	botao.addEventListener('click', () => rodar(frame));
 	header.append(botao);

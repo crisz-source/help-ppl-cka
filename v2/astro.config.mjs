@@ -20,7 +20,6 @@ export default defineConfig({
 			sidebar: nav.sidebar,
 			customCss: [
 				'@fontsource/jetbrains-mono/400.css',
-				'@fontsource/jetbrains-mono/700.css',
 				'./src/styles/tema.css',
 				'./src/styles/terminal.css',
 			],
