@@ -1,10 +1,10 @@
 # Upgrade com kubeadm
 
-> **Versão do Kubernetes:** v1.XX · **Última revisão:** AAAA-MM-DD · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
+> **Versão do Kubernetes:** v1.36 → v1.37 (lab criado em v1.36 e atualizado para v1.37) · **Última revisão:** AAAA-MM-DD · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
 
 ## O que é
 
-Atualizar um cluster criado com kubeadm para a **próxima versão minor** (por exemplo, `1.N` → `1.N+1`). Na prova é uma das tarefas mais longas: você entra por SSH no nó, troca pacotes e roda o `kubeadm upgrade`. Mas é sempre a mesma sequência, então dá para treinar até ficar automático.
+Atualizar um cluster criado com kubeadm para a **próxima versão minor** (por exemplo, `1.N` → `1.N+1`; no meu lab, `1.36` → `1.37`). Na prova é uma das tarefas mais longas: você entra por SSH no nó, troca pacotes e roda o `kubeadm upgrade`. Mas é sempre a mesma sequência, então dá para treinar até ficar automático.
 
 Três regras de base:
 
@@ -28,7 +28,7 @@ O `kubeadm upgrade apply` também atualiza os addons (CoreDNS e kube-proxy) e, p
 flowchart TD
     A[Trocar repositório apt<br/>para o novo minor] --> B[Atualizar pacote kubeadm]
     B --> C[kubeadm upgrade plan]
-    C --> D[kubeadm upgrade apply v1.XX.Y<br/>só no 1º control plane]
+    C --> D[kubeadm upgrade apply v1.37.Y<br/>só no 1º control plane]
     D --> E[drain do nó]
     E --> F[Atualizar kubelet + kubectl<br/>daemon-reload + restart kubelet]
     F --> G[uncordon]
@@ -57,22 +57,22 @@ sudo -i
 ```bash
 # Ver qual minor o repositório aponta hoje
 cat /etc/apt/sources.list.d/kubernetes.list
-# deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.N/deb/ /
+# deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.36/deb/ /
 
-# Trocar v1.N pelo minor de destino (ajuste os números)
-sed -i 's#/v1.N/#/v1.N+1/#' /etc/apt/sources.list.d/kubernetes.list
+# Trocar o minor atual pelo de destino (no lab: v1.36 → v1.37)
+sed -i 's#/v1.36/#/v1.37/#' /etc/apt/sources.list.d/kubernetes.list
 apt-get update
 ```
 
 **2. Atualizar o kubeadm:**
 
 ```bash
-# Listar versões disponíveis e copiar a exata (formato 1.XX.Y-1.1)
+# Listar versões disponíveis e copiar a exata (formato 1.37.Y-1.1)
 apt-cache madison kubeadm
 
 # Os pacotes ficam "presos" com hold; solte, instale, prenda de novo
 apt-mark unhold kubeadm
-apt-get install -y kubeadm='1.XX.Y-*'
+apt-get install -y kubeadm='1.37.Y-*'
 apt-mark hold kubeadm
 
 kubeadm version   # confirme a versão nova
@@ -85,7 +85,7 @@ kubeadm version   # confirme a versão nova
 kubeadm upgrade plan
 
 # Aplica: atualiza static Pods, addons e certificados
-kubeadm upgrade apply v1.XX.Y
+kubeadm upgrade apply v1.37.Y
 ```
 
 Em clusters com **mais de um control plane**, nos demais use `kubeadm upgrade node` (e não `apply`).
@@ -96,7 +96,7 @@ Em clusters com **mais de um control plane**, nos demais use `kubeadm upgrade no
 kubectl drain controlplane --ignore-daemonsets
 
 apt-mark unhold kubelet kubectl
-apt-get install -y kubelet='1.XX.Y-*' kubectl='1.XX.Y-*'
+apt-get install -y kubelet='1.37.Y-*' kubectl='1.37.Y-*'
 apt-mark hold kubelet kubectl
 
 systemctl daemon-reload
@@ -113,7 +113,7 @@ sudo -i
 # (repita o passo 1 de troca do repositório neste nó)
 
 apt-mark unhold kubeadm
-apt-get install -y kubeadm='1.XX.Y-*'
+apt-get install -y kubeadm='1.37.Y-*'
 apt-mark hold kubeadm
 
 # Em worker: atualiza a configuração local do kubelet
@@ -124,7 +124,7 @@ kubectl drain node01 --ignore-daemonsets
 
 # De volta ao worker:
 apt-mark unhold kubelet kubectl
-apt-get install -y kubelet='1.XX.Y-*' kubectl='1.XX.Y-*'
+apt-get install -y kubelet='1.37.Y-*' kubectl='1.37.Y-*'
 apt-mark hold kubelet kubectl
 systemctl daemon-reload
 systemctl restart kubelet
@@ -150,7 +150,7 @@ metadata:
 spec:
   containers:
     - name: kube-apiserver
-      image: registry.k8s.io/kube-apiserver:v1.XX.Y   # o "upgrade apply" troca esta tag
+      image: registry.k8s.io/kube-apiserver:v1.37.Y   # o "upgrade apply" troca esta tag
       command:
         - kube-apiserver
         - --authorization-mode=Node,RBAC
@@ -181,7 +181,7 @@ A página tem abas por gerenciador de pacotes (*Ubuntu, Debian or HypriotOS* × 
 ## Pegadinhas da prova
 
 - **Esquecer de trocar o repositório apt.** `apt-cache madison kubeadm` só mostra versões do minor atual. É o erro mais comum.
-- **Versão exata.** O enunciado costuma pedir uma versão de patch específica (`1.XX.Y`). Instale essa, não "a mais nova".
+- **Versão exata.** O enunciado costuma pedir uma versão de patch específica (`1.37.Y`). Instale essa, não "a mais nova".
 - **`kubeadm upgrade apply` em worker.** Em worker o comando é `kubeadm upgrade node`.
 - **Atualizar só o kubeadm.** `kubectl get nodes` mostra a versão do **kubelet**. Se você não atualizou o pacote kubelet e não reiniciou o serviço, o nó continua na versão antiga.
 - **Esquecer o `uncordon`.** O nó fica `Ready,SchedulingDisabled` e você perde pontos.
@@ -193,22 +193,22 @@ A página tem abas por gerenciador de pacotes (*Ubuntu, Debian or HypriotOS* × 
 
 **Enunciado (como na prova):**
 
-> The cluster is running Kubernetes `1.N.x`. Upgrade the control plane node `controlplane` and the worker node `node01` to version `1.N+1.Y`. Make sure to drain each node before upgrading kubelet and to make it schedulable again afterwards. Do not upgrade any other node.
+> The cluster is running Kubernetes `1.36.x`. Upgrade the control plane node `controlplane` and the worker node `node01` to version `1.37.Y`. Make sure to drain each node before upgrading kubelet and to make it schedulable again afterwards. Do not upgrade any other node.
 
-**Tradução:** o cluster está na versão `1.N.x`. Atualize o control plane `controlplane` e o worker `node01` para a versão `1.N+1.Y`. Faça drain de cada nó antes de atualizar o kubelet e devolva-o ao agendamento depois. Não atualize nenhum outro nó.
+**Tradução:** o cluster está na versão `1.36.x`. Atualize o control plane `controlplane` e o worker `node01` para a versão `1.37.Y`. Faça drain de cada nó antes de atualizar o kubelet e devolva-o ao agendamento depois. Não atualize nenhum outro nó.
 
 ??? success "Solução"
     **Control plane:**
     ```bash
     ssh controlplane && sudo -i
-    sed -i 's#/v1.N/#/v1.N+1/#' /etc/apt/sources.list.d/kubernetes.list
+    sed -i 's#/v1.36/#/v1.37/#' /etc/apt/sources.list.d/kubernetes.list
     apt-get update && apt-cache madison kubeadm
-    apt-mark unhold kubeadm && apt-get install -y kubeadm='1.N+1.Y-*' && apt-mark hold kubeadm
+    apt-mark unhold kubeadm && apt-get install -y kubeadm='1.37.Y-*' && apt-mark hold kubeadm
     kubeadm upgrade plan
-    kubeadm upgrade apply v1.N+1.Y          # confirme com "y"
+    kubeadm upgrade apply v1.37.Y          # confirme com "y"
     kubectl drain controlplane --ignore-daemonsets
     apt-mark unhold kubelet kubectl
-    apt-get install -y kubelet='1.N+1.Y-*' kubectl='1.N+1.Y-*'
+    apt-get install -y kubelet='1.37.Y-*' kubectl='1.37.Y-*'
     apt-mark hold kubelet kubectl
     systemctl daemon-reload && systemctl restart kubelet
     kubectl uncordon controlplane
@@ -217,13 +217,13 @@ A página tem abas por gerenciador de pacotes (*Ubuntu, Debian or HypriotOS* × 
     **Worker:**
     ```bash
     ssh node01 && sudo -i
-    sed -i 's#/v1.N/#/v1.N+1/#' /etc/apt/sources.list.d/kubernetes.list
+    sed -i 's#/v1.36/#/v1.37/#' /etc/apt/sources.list.d/kubernetes.list
     apt-get update
-    apt-mark unhold kubeadm && apt-get install -y kubeadm='1.N+1.Y-*' && apt-mark hold kubeadm
+    apt-mark unhold kubeadm && apt-get install -y kubeadm='1.37.Y-*' && apt-mark hold kubeadm
     kubeadm upgrade node
     # em outro terminal, no controlplane: kubectl drain node01 --ignore-daemonsets
     apt-mark unhold kubelet kubectl
-    apt-get install -y kubelet='1.N+1.Y-*' kubectl='1.N+1.Y-*'
+    apt-get install -y kubelet='1.37.Y-*' kubectl='1.37.Y-*'
     apt-mark hold kubelet kubectl
     systemctl daemon-reload && systemctl restart kubelet
     exit; exit
@@ -233,14 +233,14 @@ A página tem abas por gerenciador de pacotes (*Ubuntu, Debian or HypriotOS* × 
 **Como verificar:**
 
 ```bash
-kubectl get nodes                          # VERSION 1.N+1.Y e STATUS Ready (sem SchedulingDisabled)
+kubectl get nodes                          # VERSION 1.37.Y e STATUS Ready (sem SchedulingDisabled)
 kubectl get pods -n kube-system            # control plane, CoreDNS e kube-proxy rodando
-kubectl version                            # Server Version: v1.N+1.Y
+kubectl version                            # Server Version: v1.37.Y
 ```
 
 **No lab / Killercoda:**
 
 - No lab Azure, tire um **snapshot das VMs** antes de começar. Assim você treina o upgrade várias vezes.
 - Faça **backup do etcd** antes do `upgrade apply`, como numa operação real ([ver página](etcd-backup-restore.md)).
-- Tente pular um minor de propósito e leia o erro do `kubeadm upgrade plan`.
+- Tente pular um minor de propósito (de `1.36` direto para `1.38`) e leia o erro do `kubeadm upgrade plan`.
 - O Killercoda tem cenários de upgrade com kubeadm prontos. Bom para treinar contra o relógio.

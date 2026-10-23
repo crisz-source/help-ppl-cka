@@ -1,6 +1,6 @@
 # Services e Endpoints
 
-> **Versão do Kubernetes:** v1.XX · **Última revisão:** AAAA-MM-DD · **Domínio:** Services & Networking (20%)
+> **Versão do Kubernetes:** v1.36 · **Última revisão:** AAAA-MM-DD · **Domínio:** Services & Networking (20%)
 
 ## O que é
 

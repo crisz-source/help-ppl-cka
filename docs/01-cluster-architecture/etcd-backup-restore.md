@@ -1,6 +1,6 @@
 # Backup e restore do etcd
 
-> **Versão do Kubernetes:** v1.XX · **Última revisão:** AAAA-MM-DD · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
+> **Versão do Kubernetes:** v1.36 · **Última revisão:** AAAA-MM-DD · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
 
 !!! warning "Status no currículo"
     Na revisão do currículo de fevereiro de 2025, *"Implement etcd backup and restore"* **deixou de aparecer como item explícito** do Domínio 1. <!-- VERIFICAR: confirmar na versão atual de https://github.com/cncf/curriculum -->

@@ -1,6 +1,6 @@
 # Helm e Kustomize
 
-> **Versão do Kubernetes:** v1.XX · **Última revisão:** AAAA-MM-DD · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
+> **Versão do Kubernetes:** v1.36 · **Última revisão:** AAAA-MM-DD · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
 
 !!! tip "Por que uma página só"
     O currículo trata os dois como um item só (*"Use Helm and Kustomize to install cluster components"*) e a prova costuma pedir tarefas curtas de cada um. Se esta página crescer (por exemplo, com criação de charts), a sugestão é dividir em `helm.md` e `kustomize.md`.
