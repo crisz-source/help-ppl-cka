@@ -9,9 +9,9 @@ Um quinto da prova. É o domínio de **como o tráfego chega aos Pods**: endere�
 | Use ClusterIP, NodePort, LoadBalancer service types and endpoints | [Services e Endpoints](services-endpoints.md) |
 | Understand and use CoreDNS | [DNS do cluster](dns.md) |
 | Understand connectivity between Pods | *a fazer* |
-| Define and enforce Network Policies | *a fazer* |
-| Use the Gateway API to manage Ingress traffic | *a fazer* |
-| Know how to use Ingress controllers and Ingress resources | *a fazer* |
+| Define and enforce Network Policies | [NetworkPolicy](network-policy.md) |
+| Use the Gateway API to manage Ingress traffic | [Gateway API](gateway-api.md) |
+| Know how to use Ingress controllers and Ingress resources | [Ingress](ingress.md) |
 
 <!-- VERIFICAR: conferir a lista acima contra a versão atual do currículo em https://github.com/cncf/curriculum -->
 

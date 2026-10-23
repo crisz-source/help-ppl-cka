@@ -57,3 +57,6 @@ nav:
       - 03-services-networking/index.md
       - Services e Endpoints: 03-services-networking/services-endpoints.md
       - DNS do cluster: 03-services-networking/dns.md
+      - NetworkPolicy: 03-services-networking/network-policy.md
+      - Ingress: 03-services-networking/ingress.md
+      - Gateway API: 03-services-networking/gateway-api.md
