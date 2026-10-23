@@ -1,6 +1,6 @@
 # Certificados com kubeadm
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** AAAA-MM-DD · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
+> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
 
 ## O que é
 
@@ -53,7 +53,7 @@ Os kubeconfigs em `/etc/kubernetes/` (`admin.conf`, `super-admin.conf`, `control
 
 **Reinício após renovar**: os componentes do control plane são static Pods e só leem os certificados ao iniciar. O kubelet **não** recria o Pod quando um `.crt` muda, só quando o manifest em `/etc/kubernetes/manifests/` muda. Depois de renovar, você precisa reiniciar o apiserver, o controller-manager, o scheduler e o etcd.
 
-**kubelet**: o certificado de cliente do kubelet (`/var/lib/kubelet/pki/kubelet-client-current.pem`) é **rotacionado automaticamente** pelo próprio kubelet (`rotateCertificates: true` na configuração gerada pelo kubeadm). Por isso o `kubelet.conf` aponta para esse arquivo em vez de embutir o certificado. <!-- VERIFICAR: se o check-expiration da v1.XX ainda lista kubelet.conf -->
+**kubelet**: o certificado de cliente do kubelet (`/var/lib/kubelet/pki/kubelet-client-current.pem`) é **rotacionado automaticamente** pelo próprio kubelet (`rotateCertificates: true` na configuração gerada pelo kubeadm). Por isso o `kubelet.conf` aponta para esse arquivo em vez de embutir o certificado. Por isso também o `kubeadm certs check-expiration` **não lista** o `kubelet.conf` (conferido na v1.36.4).
 
 ## Comandos essenciais
 

@@ -1,6 +1,6 @@
 # Backup e restore do etcd
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** AAAA-MM-DD · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
+> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
 
 !!! warning "Status no currículo"
     Na revisão do currículo de fevereiro de 2025, *"Implement etcd backup and restore"* **deixou de aparecer como item explícito** do Domínio 1. <!-- VERIFICAR: confirmar na versão atual de https://github.com/cncf/curriculum -->
@@ -46,8 +46,15 @@ flowchart LR
 | `etcdctl` | `snapshot save` e operações num etcd **rodando** | Sim, precisa de endpoint e certificados |
 | `etcdutl` | `snapshot restore` e `snapshot status`, operações **sobre arquivos** | Não |
 
-Desde o etcd 3.5, `etcdctl snapshot restore/status` são **depreciados** em favor do `etcdutl`. No etcd 3.6 foram removidos do `etcdctl`. <!-- VERIFICAR: qual versão do etcd acompanha a v1.XX do cluster da prova e se o etcdctl dela ainda aceita "snapshot restore" -->
-Se o ambiente só tiver `etcdctl`, use `etcdctl snapshot restore`. O efeito é o mesmo.
+Desde o etcd 3.5, `etcdctl snapshot restore` e `etcdctl snapshot status` são **depreciados** em favor do `etcdutl`. No **etcd 3.6 eles foram removidos** do `etcdctl`. Como o kubeadm do Kubernetes v1.34+ já usa etcd 3.6, na prática o restore é com `etcdutl`.
+
+Para descobrir a versão: `etcdctl version`. Se for 3.5 ou anterior, `etcdctl snapshot restore` ainda funciona (com aviso). Se for 3.6+, use `etcdutl`, que também vem dentro da imagem do etcd.
+
+| Kubernetes (kubeadm) | etcd padrão | `etcdctl snapshot` tem |
+|---|---|---|
+| v1.33 ou anterior | 3.5.x | `save`, `restore`, `status` (os dois últimos com aviso) |
+| v1.34 a v1.36 | 3.6.x (v1.36: 3.6.8) | só `save` |
+| v1.37 | 3.7.x (3.7.0) | só `save` |
 
 `ETCDCTL_API=3` aparece em todo material antigo. Desde o etcd 3.4 a API v3 é o padrão, então a variável é opcional. Mantê-la não faz mal.
 
@@ -164,6 +171,7 @@ Trocar só o `hostPath.path` é o caminho mais curto: o container continua vendo
 
 - **Certificado errado.** Use os de `/etc/kubernetes/pki/etcd/` (`server.crt`/`server.key` ou `healthcheck-client.*`), e não `/etc/kubernetes/pki/apiserver.crt`. Leia os caminhos do manifest.
 - **Flags com nome parecido.** No `etcdctl` são `--cacert`, `--cert`, `--key`. No manifest do etcd são `--trusted-ca-file`, `--cert-file`, `--key-file`. Não misture.
+- **No etcd 3.6+, o erro do `etcdctl snapshot restore` engana.** O subcomando não existe mais, mas a mensagem fala da flag: `Error: unknown flag: --data-dir`. Parece flag digitada errado; a correção é trocar `etcdctl` por `etcdutl`. Sem flags, `etcdctl snapshot restore arquivo.db` só imprime a ajuda de `snapshot` e sai com **código 0**, sem restaurar nada.
 - **Restaurar por cima de `/var/lib/etcd`.** O restore exige pasta nova. Use outro caminho.
 - **Editar `--data-dir` e esquecer o volume.** O etcd sobe com banco vazio e o cluster "some". Mexa só no `hostPath`.
 - **Ter pressa.** Depois de editar o manifest, o kubelet leva um tempo para recriar o etcd e o apiserver. `kubectl` dá erro de conexão nesse intervalo. Espere com `crictl ps` em vez de editar de novo.
@@ -208,5 +216,5 @@ kubectl get pods -A                                      # estado do snapshot an
 **No lab / Killercoda:**
 
 - No lab kubeadm: faça backup, crie um Deployment `teste-restore`, restaure o snapshot e confirme que o Deployment **sumiu**. É a prova de que o restore funcionou.
-- Rode `etcdctl snapshot restore` e `etcdutl snapshot restore` e compare as mensagens de depreciação da sua versão.
+- Rode `etcdctl version`. Se for 3.5, compare `etcdctl snapshot restore` com `etcdutl snapshot restore` e veja o aviso de depreciação. Se for 3.6+, confirme que o `etcdctl` não tem mais o subcomando `restore`.
 - Quebre o restore de propósito (mude `--data-dir` sem mudar o volume) e investigue com `crictl logs <id-do-etcd>`. Ótimo treino de Troubleshooting.

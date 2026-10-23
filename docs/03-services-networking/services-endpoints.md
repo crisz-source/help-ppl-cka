@@ -1,6 +1,6 @@
 # Services e Endpoints
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** AAAA-MM-DD · **Domínio:** Services & Networking (20%)
+> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Services & Networking (20%)
 
 ## O que é
 
@@ -219,4 +219,4 @@ frontend-svc-7x2kq   IPv4          8080    10.244.1.5,10.244.2.7   12s
 - No lab Azure: libere a porta 30080 no NSG das VMs e acesse pelo IP público de um worker. Depois acesse pelo IP do **outro** worker, mesmo sem Pod nele. Por padrão (`externalTrafficPolicy: Cluster`), qualquer nó encaminha.
 - Mude para `externalTrafficPolicy: Local` e repita: agora só o nó que tem Pod responde.
 - Quebre o selector de propósito (`kubectl edit svc`) e veja os endpoints sumirem. Depois coloque uma readinessProbe que falha e observe o mesmo efeito.
-- Em um nó, rode `iptables-save | grep frontend-svc` (ou `nft list ruleset | grep frontend`, se o kube-proxy estiver em modo nftables) para ver as regras que o kube-proxy criou. Descubra o modo com `kubectl -n kube-system get cm kube-proxy -o yaml | grep mode`. <!-- VERIFICAR: status do modo IPVS (há proposta de depreciação) na versão v1.XX -->
+- Em um nó, rode `iptables-save | grep frontend-svc` (ou `nft list ruleset | grep frontend`, se o kube-proxy estiver em modo nftables) para ver as regras que o kube-proxy criou. Descubra o modo com `kubectl -n kube-system get cm kube-proxy -o yaml | grep mode`. <!-- VERIFICAR: status do modo IPVS (há proposta de depreciação). Na v1.36.4, o `kube-proxy --help` ainda lista ipvs sem marca de depreciado; conferir nas release notes -->

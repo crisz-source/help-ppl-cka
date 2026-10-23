@@ -12,3 +12,4 @@ Abrir com a extensão Excalidraw do VS Code. Cada diagrama tem um script gerador
 | `07-workloads-scheduling.excalidraw` | `python gerar_07_workloads_scheduling.py 07-workloads-scheduling.excalidraw` | Do YAML ao Pod no nó certo: quota, controlador, scheduler (requests, taints, affinity), kubelet com limits e ConfigMap/Secret, HPA |
 | `08-storage.excalidraw` | `python gerar_08_storage.py 08-storage.excalidraw` | Onde o dado mora: Pod → PVC → PV (pronto ou criado pela StorageClass) → disco, emptyDir e reclaimPolicy |
 | `09-troubleshooting.excalidraw` | `python gerar_09_troubleshooting.py 09-troubleshooting.excalidraw` | Sintoma → onde olhar → causa típica, e o roteiro de primeira olhada em 5 passos |
+| `10-bak-manifestos.excalidraw` | `python gerar_10_bak_manifestos.py 10-bak-manifestos.excalidraw` | Teste real: um `.bak` na pasta de manifestos troca o static Pod e faz a edição no `.yaml` ser ignorada |

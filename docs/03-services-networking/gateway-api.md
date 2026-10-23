@@ -1,6 +1,6 @@
 # Gateway API
 
-> **Versão do Kubernetes:** v1.36 · **Versão da Gateway API:** v1.X · **Última revisão:** AAAA-MM-DD · **Domínio:** Services & Networking (20%)
+> **Versão do Kubernetes:** v1.36 · **Versão da Gateway API:** v1.6.3 · **Última revisão:** 2026-10-23 · **Domínio:** Services & Networking (20%)
 
 ## O que é
 
@@ -15,7 +15,7 @@ Em vez de um objeto só, ela separa **papéis** em recursos diferentes:
 | `HTTPRoute` | Time da aplicação | Regras: host, path, cabeçalho → Services, com peso e filtros | Namespace |
 | `ReferenceGrant` | Dono do namespace de destino | Autoriza uma rota de **outro namespace** a usar um Service daqui | Namespace |
 
-Também existem `GRPCRoute` (estável) e, no canal experimental, `TLSRoute`, `TCPRoute` e `UDPRoute`. <!-- VERIFICAR: canal (standard/experimental) de TLSRoute na versão atual da Gateway API -->
+Também existem `GRPCRoute`, `TLSRoute`, `TCPRoute` e `UDPRoute`, além de `ListenerSet` e `BackendTLSPolicy`. Na v1.6.3 todos estão no canal **standard** (`v1`) e vêm no `standard-install.yaml`. Em versões antigas da Gateway API, `TLSRoute`, `TCPRoute` e `UDPRoute` só existiam no canal experimental (`v1alpha2`): confira o que o cluster serve com `kubectl api-resources --api-group=gateway.networking.k8s.io`.
 
 **Ela não vem com o Kubernetes.** Os recursos são **CRDs** instalados à parte (grupo `gateway.networking.k8s.io`), e também é preciso um **controller** que os implemente: Envoy Gateway, NGINX Gateway Fabric, Istio, Cilium, Traefik, Kong, Contour etc. Na prova, o ambiente já vem com os CRDs e um controller.
 
@@ -47,7 +47,7 @@ flowchart LR
 | Header, peso, redirect, rewrite | Anotações por controller | Campos padrão (`matches`, `filters`, `weight`) |
 | Outro namespace | Não | Sim (`allowedRoutes` + `ReferenceGrant`) |
 | `kubectl create` | Sim | Não: escrever YAML |
-| Protocolos | HTTP/HTTPS | HTTP, HTTPS, gRPC; TLS/TCP/UDP no experimental |
+| Protocolos | HTTP/HTTPS | HTTP, HTTPS, gRPC, TLS, TCP, UDP |
 
 ## Comandos essenciais
 
@@ -75,7 +75,7 @@ curl -H "Host: app.exemplo.com" http://<endereço-do-gateway>/
 curl -H "Host: app.exemplo.com" -H "env: canary" http://<endereço-do-gateway>/
 
 # Instalar os CRDs (fora da prova). Versão em https://gateway-api.sigs.k8s.io/
-kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.X.Y/standard-install.yaml
+kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/standard-install.yaml
 ```
 
 Não há `kubectl create gateway` nem `kubectl create httproute`. Copie o YAML da documentação, ou parta de um objeto existente com `kubectl get httproute <nome> -o yaml`.
@@ -220,7 +220,7 @@ spec:
 `ReferenceGrant`: rota em `shop` usando um Service em `backend`. Fica no namespace **do Service**:
 
 ```yaml
-apiVersion: gateway.networking.k8s.io/v1beta1
+apiVersion: gateway.networking.k8s.io/v1
 kind: ReferenceGrant
 metadata:
   name: shop-pode-usar-backend
@@ -235,7 +235,7 @@ spec:
       kind: Service
 ```
 
-Confira a versão servida no cluster com `kubectl api-resources | grep referencegrant`. <!-- VERIFICAR: se ReferenceGrant já tem v1 na versão atual da Gateway API -->
+Na v1.6.3 o `ReferenceGrant` é servido em `v1` e em `v1beta1` (material antigo usa `v1beta1`, que continua aceito). Confira a versão servida no cluster com `kubectl api-resources | grep referencegrant`.
 
 ## Na documentação oficial
 

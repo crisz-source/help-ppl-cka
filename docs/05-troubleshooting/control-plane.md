@@ -131,11 +131,49 @@ spec:
 - **`kubectl` não funciona ⇒ não perca tempo nele.** Vá direto para `crictl ps -a` no control plane.
 - **Container `Exited` com `ATTEMPT` aumentando** = sobe e morre. A causa está no `crictl logs` dele ou no arquivo em `/var/log/pods/`.
 - **Container que nem aparece no `crictl ps -a`** = o kubelet não conseguiu ler o manifesto (YAML inválido) ou a imagem não baixa. Olhe o `journalctl -u kubelet`.
-- **Faça backup antes de editar:** `cp /etc/kubernetes/manifests/kube-apiserver.yaml /root/kube-apiserver.yaml.bak`. **Fora** da pasta de manifestos: um `.bak` dentro dela também é lido pelo kubelet e vira um segundo Pod.
+- **Faça backup antes de editar:** `cp /etc/kubernetes/manifests/kube-apiserver.yaml /root/kube-apiserver.yaml.bak`. **Fora** da pasta de manifestos: o kubelet lê todo arquivo dali (só ignora nomes que começam com `.`), e um `.bak` lá dentro é tratado como outro manifesto de static Pod. Veja [o teste abaixo](#teste-real-um-bak-dentro-da-pasta-de-manifestos): com o mesmo `metadata.name`, ele não vira um segundo Pod, mas **substitui** o original e faz suas edições no `.yaml` serem ignoradas.
 - **`kubectl delete pod kube-apiserver-cp` não reinicia nada**: é um mirror Pod. O kubelet o recria em segundos e o container continua o mesmo (mesmo ID, 0 restarts em `crictl ps`).
 - **Espere depois de salvar.** O kubelet leva alguns segundos para recriar, e o apiserver mais uns 30–60 s para responder. `watch crictl ps` em vez de editar de novo.
 - **Scheduler fora:** o sintoma é discreto. Pod `Pending` **sem evento `FailedScheduling`** é a pista.
 - **Controller-manager fora:** `kubectl create deployment` funciona (o apiserver grava), mas `kubectl get rs` não mostra nada novo.
+
+## Teste real: um `.bak` dentro da pasta de manifestos
+
+Feito num cluster kind v1.36.4 (kubelet com `staticPodPath: /etc/kubernetes/manifests`, igual ao kubeadm), em 2026-10-23.
+
+**1. Copiar o manifesto do scheduler para `kube-scheduler.yaml.bak` na mesma pasta.** O kubelet não criou um segundo Pod: os dois arquivos têm o mesmo `metadata.name`, então geram o mesmo nome de Pod (`kube-scheduler-<nó>`). Mas o Pod ganhou outro UID (o kubelet calcula o UID do static Pod a partir do conteúdo **e do caminho** do arquivo), e o kubelet tratou isso como um Pod novo. Ele matou o container que rodava e subiu outro, num sandbox novo (`POD ID` diferente):
+
+```console
+# crictl ps -a --name kube-scheduler        (colunas CREATED, IMAGE e NAMESPACE recortadas)
+CONTAINER       STATE     NAME             ATTEMPT   POD ID          POD
+15b689bf1e494   Running   kube-scheduler   0         b2a5dfb6d06d2   kube-scheduler-cka-teste-control-plane
+90c33f72e20ab   Exited    kube-scheduler   0         53a6c585bd891   kube-scheduler-cka-teste-control-plane
+```
+
+No `journalctl -u kubelet`, a troca aparece como um mirror Pod que "não bate" com o static Pod:
+
+```console
+kubelet.go:3482] "Trying to delete pod" pod="kube-system/kube-scheduler-cka-teste-control-plane" podUID="17df22cd-..."
+kubelet.go:3488] "Deleted mirror pod as it didn't match the static Pod" pod="kube-system/kube-scheduler-cka-teste-control-plane"
+kubelet.go:3499] "Creating a mirror pod for static pod" pod="kube-system/kube-scheduler-cka-teste-control-plane"
+```
+
+Nenhuma linha de erro ou aviso sobre o `.bak`: o kubelet não avisa que há dois arquivos para o mesmo Pod.
+
+**2. Com o `.bak` ainda lá, editar o `kube-scheduler.yaml`** (acrescentar `--v=4`). O arquivo mudou, mas o container continuou **sem** a flag por mais de 40 s: o Pod em execução estava seguindo o `.bak`. É o pior efeito para a prova: você corrige o manifesto certo e nada acontece.
+
+```console
+# grep -c -- '--v=4' /etc/kubernetes/manifests/kube-scheduler.yaml
+1
+# crictl inspect <id-do-scheduler> | grep -c -- '--v=4'
+0
+```
+
+**3. Apagar o `.bak`.** O kubelet trocou o Pod de novo (o scheduler ficou ~15 s fora) e só então a edição entrou no container (`crictl inspect` passou a mostrar `--v=4`).
+
+**4. Arquivo oculto (`.kube-scheduler.yaml`) na pasta:** ignorado. O ID do container não mudou.
+
+Conclusão: o backup vai **fora** da pasta (`/root/`, `/tmp/`). Se você precisa deixar uma cópia ali, ela tem que começar com `.`.
 
 ## Pratique
 
@@ -188,5 +226,5 @@ check   1/1     Running   0          2m    10.244.80.230   w2
 
 - Faça backup do manifesto do kube-apiserver **fora** da pasta, troque `--etcd-servers` para a porta `2380` e acompanhe com `watch crictl ps -a`: o apiserver sobe e morre. Leia o motivo em `/var/log/pods/kube-system_kube-apiserver-*/`. Restaure o backup.
 - Quebre a indentação do manifesto do scheduler e veja o container sumir e o erro aparecer no `journalctl -u kubelet`.
-- Deixe um `kube-scheduler.yaml.bak` **dentro** da pasta de manifestos e veja o que o kubelet faz.
+- Deixe um `kube-scheduler.yaml.bak` **dentro** da pasta de manifestos, edite o `kube-scheduler.yaml` e confira com `crictl inspect` que a edição não entrou. Compare com o [teste real](#teste-real-um-bak-dentro-da-pasta-de-manifestos).
 - Pare o controller-manager (`mv` do manifesto) e crie um Deployment: confira que nenhum ReplicaSet aparece.

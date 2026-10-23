@@ -1,6 +1,6 @@
 # NetworkPolicy
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** AAAA-MM-DD · **Domínio:** Services & Networking (20%)
+> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Services & Networking (20%)
 
 ## O que é
 
@@ -33,6 +33,7 @@ Os campos de uma política:
 |---|---|
 | `spec.podSelector` | **A quem** a política se aplica (Pods do namespace da política). `{}` = todos os Pods do namespace |
 | `spec.policyTypes` | `Ingress`, `Egress` ou os dois. Define em qual direção os Pods selecionados viram "nega por padrão" |
+| `spec.policyTypes` (omitido) | `Ingress` sempre; `Egress` só se houver bloco `egress` |
 | `ingress[].from` | Origens permitidas |
 | `egress[].to` | Destinos permitidos |
 | `ports` | Porta (número ou nome), `protocol` (TCP padrão, UDP, SCTP), `endPort` para faixa |
@@ -205,6 +206,7 @@ spec:
 ## Pegadinhas da prova
 
 - **E × OU:** `- namespaceSelector` e `podSelector` no **mesmo item** (sem `-` no segundo) é E. Com `-` nos dois, é OU e libera muito mais do que o pedido.
+- **`policyTypes` omitido.** Sem o campo, `Ingress` entra **sempre** e `Egress` só entra se houver bloco `egress`. Uma política com só `egress:` e sem `policyTypes` também vira **default-deny de ingress** para os Pods selecionados. Na dúvida, declare `policyTypes` explicitamente. Confira o que a API gravou com `kubectl get netpol -o custom-columns=NOME:.metadata.name,TIPOS:.spec.policyTypes`.
 - **`podSelector: {}` no `spec`** = todos os Pods do namespace. **`podSelector` vazio dentro de `from`** = todos os Pods **do namespace da política**, não do cluster. Para "qualquer Pod do cluster", use `namespaceSelector: {}`.
 - **A porta é a do container (targetPort)**, porque a política vê o tráfego depois que o Service já traduziu o IP. Liberar a porta `80` do Service quando o container escuta em `8080` não funciona.
 - **Egress negado quebra o DNS.** Ao restringir egress, libere UDP **e** TCP 53 para o CoreDNS (`k8s-app: kube-dns` em `kube-system`), senão o teste falha por "bad address" e parece problema da política de destino.
