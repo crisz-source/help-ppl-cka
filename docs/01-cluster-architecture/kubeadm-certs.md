@@ -26,15 +26,7 @@ Se o cluster passa um ano sem upgrade nem renovação, os certificados vencem e 
 
 Um cluster kubeadm tem **três CAs**, cada uma com seu grupo de certificados:
 
-```mermaid
-flowchart TD
-    CA[ca.crt<br/>CA do cluster] --> APIS[apiserver.crt<br/>servidor HTTPS do API server]
-    CA --> AKC[apiserver-kubelet-client.crt<br/>API server → kubelet]
-    CA --> KC[admin.conf, controller-manager.conf,<br/>scheduler.conf, kubelet.conf<br/>certificados dentro dos kubeconfigs]
-    ECA[etcd/ca.crt<br/>CA do etcd] --> ES[etcd/server.crt e etcd/peer.crt]
-    ECA --> AEC[apiserver-etcd-client.crt<br/>API server → etcd]
-    FCA[front-proxy-ca.crt<br/>CA do agregador] --> FPC[front-proxy-client.crt]
-```
+[![Certificados do kubeadm](../assets/diagramas/01-kubeadm-certs.svg)](../assets/diagramas/01-kubeadm-certs.svg "Abrir o diagrama em tamanho real")
 
 Arquivos em `/etc/kubernetes/pki/` (control plane):
 

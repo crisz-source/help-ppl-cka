@@ -32,18 +32,7 @@ Na prova: instalar/atualizar um chart com valores específicos, listar releases,
 1. Lê o `kustomization.yaml`, carrega os arquivos de `resources` e aplica as transformações (namespace, prefixo, patches…).
 2. Gera um YAML final. Com `kubectl apply -k`, esse YAML vai para o API server como um `apply` comum.
 
-```mermaid
-flowchart LR
-    subgraph Helm
-        C[Chart + values] --> R[helm renderiza]
-        R --> API1[kube-apiserver]
-        R --> S[(Secret da release<br/>histórico)]
-    end
-    subgraph Kustomize
-        B[base/ YAML puro] --> K[kustomization.yaml<br/>overlay]
-        K --> Y[YAML final] --> API2[kube-apiserver]
-    end
-```
+[![Helm e Kustomize](../assets/diagramas/01-helm-kustomize.svg)](../assets/diagramas/01-helm-kustomize.svg "Abrir o diagrama em tamanho real")
 
 O PodSecurityPolicy, que aparece em charts antigos, foi **removido na v1.25**. Se um chart antigo tentar criar `PodSecurityPolicy`, a instalação falha. O substituto é o **Pod Security Admission**.
 

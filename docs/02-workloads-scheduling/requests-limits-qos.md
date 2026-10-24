@@ -31,15 +31,7 @@ Atalho: se você declara só `limits`, o Kubernetes copia o valor para `requests
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    P[Pod com requests] --> S[kube-scheduler]
-    S -->|soma dos requests cabe<br/>no Allocatable do nó?| N[nó]
-    N --> K[kubelet]
-    K -->|limits viram cgroups| C[container]
-    C -->|passou do limit de memória| O[OOMKilled]
-    K -->|nó sem memória: expulsa<br/>BestEffort → Burstable| E[eviction]
-```
+[![Requests, limits e QoS](../assets/diagramas/02-requests-limits-qos.svg)](../assets/diagramas/02-requests-limits-qos.svg "Abrir o diagrama em tamanho real")
 
 - O scheduler olha **requests**, nunca o uso real. Um nó com CPU a 5% pode recusar Pods se as reservas já somam 100% do `Allocatable`.
 - `Allocatable` = capacidade do nó menos o que é reservado para sistema e kubelet. Está no `kubectl describe node`.

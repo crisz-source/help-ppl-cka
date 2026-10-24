@@ -24,14 +24,7 @@ Na prova, RBAC costuma aparecer como: "crie uma ServiceAccount, dê permissão X
 
 Toda requisição passa pelo **kube-apiserver** em três etapas, nesta ordem:
 
-```mermaid
-flowchart LR
-    A[kubectl / Pod] -->|requisição HTTPS| B[Autenticação<br/>quem é você?]
-    B --> C[Autorização<br/>Node, RBAC...]
-    C --> D[Admission control<br/>mutação e validação]
-    D --> E[(etcd)]
-    C -.->|nenhuma regra permite| F[403 Forbidden]
-```
+[![RBAC: o caminho de uma requisição](../assets/diagramas/01-rbac.svg)](../assets/diagramas/01-rbac.svg "Abrir o diagrama em tamanho real")
 
 1. **Autenticação**: o API server identifica o sujeito (certificado de cliente, token de ServiceAccount, OIDC). Kubernetes **não tem objeto `User`**: usuário é só um nome que vem do certificado (campo `CN`) ou do token. Grupos vêm do campo `O` do certificado.
 2. **Autorização**: os autorizadores configurados em `--authorization-mode` (no kubeadm: `Node,RBAC`) avaliam a requisição. O RBAC lê os Roles e Bindings, que ficam no etcd como qualquer outro objeto.

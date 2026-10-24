@@ -27,14 +27,7 @@ A StorageClass **não tem namespace** e é **imutável** depois de criada (excet
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    C[PVC<br/>storageClassName: rapido] --> PR[provisionador da classe<br/>CSI controller]
-    PR -->|cria| D[(disco real)]
-    PR -->|cria| V[PV<br/>tamanho exato · reclaimPolicy da classe]
-    V -->|bound| C
-    P[Pod] --> C
-```
+[![StorageClass e provisionamento dinâmico](../assets/diagramas/04-storageclass.svg)](../assets/diagramas/04-storageclass.svg "Abrir o diagrama em tamanho real")
 
 - O PVC escolhe a classe por `storageClassName`. **Sem o campo**, recebe a **classe padrão** (a que tem a anotação `storageclass.kubernetes.io/is-default-class: "true"`), se houver uma.
 - Se a classe padrão for criada **depois**, os PVCs que estavam `Pending` sem classe recebem a padrão automaticamente.

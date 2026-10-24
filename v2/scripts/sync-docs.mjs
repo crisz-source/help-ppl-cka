@@ -13,6 +13,8 @@ const RAIZ = path.resolve(V2, '..');
 const DOCS = path.join(RAIZ, 'docs');
 const SAIDA = path.join(V2, 'src', 'content', 'docs');
 const GERADO = path.join(V2, 'src', 'generated');
+const ASSETS_DOCS = path.join(DOCS, 'assets');
+const ASSETS_PUBLIC = path.join(V2, 'public', 'assets'); // public/ é servido como está, sem passar pelo Astro
 export const BASE = '/help-ppl-cka/v2';
 
 // tipos de aviso do Material → asides do Starlight (note, tip, caution, danger)
@@ -89,6 +91,19 @@ function converterLinks(texto, relMd, slugsExistentes, arquivo) {
   });
 }
 
+/** Imagens e links relativos para docs/assets (![alt](../assets/x.svg), [texto](../assets/x.svg)) viram
+ *  caminhos absolutos do v2; os arquivos vêm de public/assets. */
+function converterAssets(texto, relMd, arquivo) {
+  const dir = path.posix.dirname(relMd.replace(/\\/g, '/'));
+  return texto.replace(/\]\(([^)\s#]+)( +"[^"]*")?\)/g, (todo, alvo, titulo = '') => {
+    if (/^[a-z]+:/i.test(alvo) || alvo.startsWith('/') || alvo.endsWith('.md')) return todo;
+    const relAlvo = path.posix.normalize(path.posix.join(dir, alvo));
+    if (!relAlvo.startsWith('assets/')) return todo;
+    if (!fs.existsSync(path.join(DOCS, relAlvo))) falha(`${arquivo}: arquivo inexistente "${alvo}"`);
+    return `](${BASE}/${relAlvo}${titulo})`;
+  });
+}
+
 function converterPagina(fonte, relMd, slugsExistentes) {
   const arquivo = `docs/${relMd.replace(/\\/g, '/')}`;
   const texto = fonte.replace(/\r\n/g, '\n');
@@ -97,6 +112,7 @@ function converterPagina(fonte, relMd, slugsExistentes) {
   corpo = converterAvisos(corpo.split('\n'), arquivo).join('\n');
   corpo = converterMermaid(corpo);
   corpo = converterLinks(corpo, relMd, slugsExistentes, arquivo);
+  corpo = converterAssets(corpo, relMd, arquivo);
   return { titulo: h1[1].trim(), corpo };
 }
 
@@ -136,6 +152,8 @@ function main() {
   const slugs = new Set(arquivos.map(slugDe));
   fs.rmSync(SAIDA, { recursive: true, force: true });
   fs.mkdirSync(GERADO, { recursive: true });
+  fs.rmSync(ASSETS_PUBLIC, { recursive: true, force: true });
+  if (fs.existsSync(ASSETS_DOCS)) fs.cpSync(ASSETS_DOCS, ASSETS_PUBLIC, { recursive: true });
 
   for (const rel of arquivos) {
     const { titulo, corpo } = converterPagina(fs.readFileSync(path.join(DOCS, rel), 'utf8'), rel, slugs);

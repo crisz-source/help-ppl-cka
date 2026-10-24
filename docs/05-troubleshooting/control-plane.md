@@ -20,13 +20,7 @@ O que cada componente fora do ar causa:
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    M["/etc/kubernetes/manifests/<br/>kube-apiserver.yaml ..."] -->|observa a pasta| K[kubelet do control plane]
-    K -->|cria| C[containers via containerd]
-    C -->|stdout/stderr| L["/var/log/pods/ns_pod_uid/container/N.log"]
-    API[kube-apiserver] -.->|só um espelho<br/>mirror Pod| V[kubectl get pods -n kube-system]
-```
+[![Control plane: static Pods](../assets/diagramas/05-control-plane.svg)](../assets/diagramas/05-control-plane.svg "Abrir o diagrama em tamanho real")
 
 - O Pod que aparece em `kubectl get pods -n kube-system` (`kube-apiserver-cp`) é um **mirror Pod**: só um reflexo. Apagá-lo com `kubectl delete` não faz nada; o kubelet o recria.
 - O kubelet varre a pasta periodicamente. Manifesto **salvo com erro de YAML** = o container some e não volta, e o kubelet registra o erro no `journalctl`.

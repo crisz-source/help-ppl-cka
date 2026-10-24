@@ -16,14 +16,7 @@ A diferença que a prova cobra: **taint + toleration repele; nodeSelector atrai.
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    P[Pod pendente] --> S[kube-scheduler]
-    S -->|1. filtra por nodeSelector| F[nós com os labels]
-    F -->|2. filtra por taints<br/>NoSchedule sem toleration sai| T[nós que aceitam]
-    T -->|3. pontua e escolhe| N[nó escolhido]
-    K[kubelet / node controller] -.->|NoExecute expulsa<br/>Pods já rodando| N
-```
+[![Taints, tolerations e nodeSelector](../assets/diagramas/02-taints-tolerations-nodeselector.svg)](../assets/diagramas/02-taints-tolerations-nodeselector.svg "Abrir o diagrama em tamanho real")
 
 Os três efeitos de taint:
 

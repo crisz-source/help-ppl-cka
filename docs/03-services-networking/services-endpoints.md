@@ -22,22 +22,7 @@ Os tipos são cumulativos: `LoadBalancer` ⊃ `NodePort` ⊃ `ClusterIP`.
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    subgraph Control plane
-        API[kube-apiserver]
-        EPC[EndpointSlice controller<br/>no kube-controller-manager]
-    end
-    subgraph Cada nó
-        KP[kube-proxy]
-        R[regras iptables / nftables / IPVS]
-    end
-    EPC -->|observa Services e Pods prontos| API
-    EPC -->|grava EndpointSlices| API
-    KP -->|observa Services e EndpointSlices| API
-    KP --> R
-    C[Pod cliente] -->|10.96.x.x:80| R -->|DNAT para IP:targetPort| P[Pod do Service]
-```
+[![Services e EndpointSlices](../assets/diagramas/03-services-endpoints.svg)](../assets/diagramas/03-services-endpoints.svg "Abrir o diagrama em tamanho real")
 
 1. Você cria o Service. O **kube-apiserver** reserva um IP da faixa `--service-cluster-ip-range` (no kubeadm, padrão `10.96.0.0/12`).
 2. O **EndpointSlice controller** (dentro do kube-controller-manager) procura os Pods que batem com o selector **e estão Ready**, e grava os IPs deles em EndpointSlices.

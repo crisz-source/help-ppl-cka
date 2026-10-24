@@ -26,12 +26,7 @@ O modo é uma **promessa de capacidade** usada no binding. Ele não é um bloque
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    P[Pod<br/>volumes: persistentVolumeClaim] --> C[PVC<br/>5Gi · RWO · classe X]
-    C -->|controlador de PV<br/>procura PV compatível| V[PV<br/>10Gi · RWO · classe X]
-    V --> D[(disco real<br/>NFS, hostPath, CSI...)]
-```
+[![PV e PVC](../assets/diagramas/04-pv-pvc.svg)](../assets/diagramas/04-pv-pvc.svg "Abrir o diagrama em tamanho real")
 
 O controlador de PV (dentro do kube-controller-manager) liga um PVC a um PV quando **todas** as condições batem:
 

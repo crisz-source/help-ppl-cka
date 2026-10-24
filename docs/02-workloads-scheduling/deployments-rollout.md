@@ -12,13 +12,7 @@ Um **Deployment** mantém N réplicas de um Pod rodando e troca a versão delas 
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    D[Deployment web<br/>replicas: 3] -->|revisão 1| RS1[ReplicaSet web-abc<br/>nginx:1.27 · 3 → 0]
-    D -->|revisão 2| RS2[ReplicaSet web-def<br/>nginx:1.28 · 0 → 3]
-    RS1 --> P1[Pods antigos]
-    RS2 --> P2[Pods novos]
-```
+[![Deployment: rollout](../assets/diagramas/02-deployments-rollout.svg)](../assets/diagramas/02-deployments-rollout.svg "Abrir o diagrama em tamanho real")
 
 Estratégias (`spec.strategy.type`):
 

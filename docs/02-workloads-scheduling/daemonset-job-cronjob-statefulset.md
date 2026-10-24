@@ -17,14 +17,7 @@ Todos são "self-healing": o controlador compara o estado atual com o pedido e r
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    DS[DaemonSet] -->|1 Pod em cada nó| N[w1 · w2 · cp*]
-    CJ[CronJob] -->|no horário| J[Job]
-    J -->|até completions sucessos| P[Pods que terminam]
-    SS[StatefulSet] -->|db-0, depois db-1, db-2| S[Pods com nome fixo]
-    S --> PVC[um PVC por Pod<br/>data-db-0, data-db-1]
-```
+[![DaemonSet, Job, CronJob e StatefulSet](../assets/diagramas/02-daemonset-job-cronjob-statefulset.svg)](../assets/diagramas/02-daemonset-job-cronjob-statefulset.svg "Abrir o diagrama em tamanho real")
 
 \* o DaemonSet só roda no control plane se tolerar o taint dele.
 

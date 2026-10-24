@@ -24,13 +24,4 @@ O maior domínio da prova: quase um terço dos pontos. E não é só ele, porque
 
 ## Roteiro de primeira olhada
 
-```mermaid
-flowchart TD
-    A{kubectl responde?} -->|não| CP[Control plane:<br/>ssh cp, crictl ps -a,<br/>/var/log/pods, manifestos]
-    A -->|sim| B{kubectl get nodes:<br/>algum NotReady?}
-    B -->|sim| N[Nó: ssh, systemctl status kubelet,<br/>journalctl -u kubelet, containerd]
-    B -->|não| C{Pod com problema}
-    C -->|Pending / ImagePull / Config| E[kubectl describe pod → Events]
-    C -->|CrashLoopBackOff| L[kubectl logs --previous<br/>+ exit code]
-    C -->|Running mas não atende| S[Service, Endpoints,<br/>DNS, NetworkPolicy]
-```
+[![Troubleshooting: por onde começar](../assets/diagramas/05-visao-geral.svg)](../assets/diagramas/05-visao-geral.svg "Abrir o diagrama em tamanho real")

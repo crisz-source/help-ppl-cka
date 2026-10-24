@@ -16,13 +16,7 @@ Escala **horizontal** (mais Pods). A vertical (mais CPU para o mesmo Pod) é o V
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    MS[metrics-server<br/>coleta do kubelet] --> API[metrics.k8s.io]
-    H[HPA controller<br/>a cada 15 s] -->|lê uso dos Pods| API
-    H -->|calcula e grava replicas| D[Deployment<br/>subrecurso scale]
-    D --> RS[ReplicaSet] --> P[Pods]
-```
+[![HPA: como as réplicas mudam](../assets/diagramas/02-hpa.svg)](../assets/diagramas/02-hpa.svg "Abrir o diagrama em tamanho real")
 
 A conta, a cada 15 segundos:
 

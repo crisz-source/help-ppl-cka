@@ -24,18 +24,7 @@ São três peças com papéis diferentes:
 
 O `kubeadm upgrade apply` também atualiza os addons (CoreDNS e kube-proxy) e, por padrão, **renova os certificados** do control plane (ver [Certificados com kubeadm](kubeadm-certs.md)).
 
-```mermaid
-flowchart TD
-    A[Trocar repositório apt<br/>para o novo minor] --> B[Atualizar pacote kubeadm]
-    B --> C[kubeadm upgrade plan]
-    C --> D[kubeadm upgrade apply v1.37.Y<br/>só no 1º control plane]
-    D --> E[drain do nó]
-    E --> F[Atualizar kubelet + kubectl<br/>daemon-reload + restart kubelet]
-    F --> G[uncordon]
-    G --> H{Workers}
-    H --> I[Atualizar kubeadm<br/>kubeadm upgrade node]
-    I --> J[drain → kubelet/kubectl → uncordon]
-```
+[![Upgrade com kubeadm](../assets/diagramas/01-upgrade-kubeadm.svg)](../assets/diagramas/01-upgrade-kubeadm.svg "Abrir o diagrama em tamanho real")
 
 **Version skew**: o kubelet pode ficar algumas versões minor **atrás** do kube-apiserver (nunca à frente). Por isso atualizar o control plane antes dos workers não quebra nada. <!-- VERIFICAR: limite atual de skew kubelet ↔ apiserver na página "Version Skew Policy" -->
 

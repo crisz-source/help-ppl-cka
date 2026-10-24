@@ -27,15 +27,7 @@ As causas mais cobradas, em ordem de frequência:
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    SD[systemd] -->|inicia| K[kubelet<br/>/var/lib/kubelet/config.yaml]
-    K -->|CRI socket| C[containerd]
-    C --> P[containers dos Pods]
-    K -->|kubelet.conf + cert do cliente| API[kube-apiserver]
-    API --> NC[node controller<br/>sem notícia ~50 s: Unknown]
-    NC -->|taint not-ready / unreachable| E[Pods saem após 300 s]
-```
+[![Nó NotReady: a cadeia do kubelet](../assets/diagramas/05-no-notready.svg)](../assets/diagramas/05-no-notready.svg "Abrir o diagrama em tamanho real")
 
 Os arquivos do kubelet num nó kubeadm (memorize os caminhos):
 

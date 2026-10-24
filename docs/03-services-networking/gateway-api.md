@@ -21,16 +21,7 @@ Também existem `GRPCRoute`, `TLSRoute`, `TCPRoute` e `UDPRoute`, além de `List
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    GC[GatewayClass<br/>controllerName] --> GW[Gateway<br/>listener HTTP :80<br/>listener HTTPS :443]
-    R1[HTTPRoute<br/>parentRefs: gateway] -->|se liga a| GW
-    R1 -->|backendRefs, peso 90| S1[Service app-v1]
-    R1 -->|backendRefs, peso 10| S2[Service app-v2]
-    CTRL[Controller da Gateway API] -->|observa os recursos| API[kube-apiserver]
-    CTRL -->|cria e configura| DP[Proxy de dados<br/>Pods + Service LoadBalancer/NodePort]
-    U[Cliente externo] --> DP
-```
+[![Gateway API: objetos e controller](../assets/diagramas/03-gateway-api.svg)](../assets/diagramas/03-gateway-api.svg "Abrir o diagrama em tamanho real")
 
 1. A `GatewayClass` diz qual controller cuida dos Gateways dessa classe. O controller marca a classe como `Accepted`.
 2. Você cria um `Gateway`. O controller provisiona o proxy (Pods e um Service), coloca o endereço em `status.addresses` e marca o Gateway como `Programmed`.

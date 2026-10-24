@@ -17,14 +17,7 @@ E uma quinta, para "monitorar o uso de recursos": **`kubectl top`**, que precisa
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    APP[app no container<br/>stdout / stderr] --> RT[containerd grava em<br/>/var/log/pods/...]
-    RT -->|kubelet lê| KL[kubectl logs]
-    RT -->|no nó| CR[crictl logs]
-    K8S[scheduler, kubelet,<br/>controladores] -->|objetos Event| EV[kubectl get events<br/>kubectl describe]
-    KU[kubelet e containerd<br/>serviços systemd] --> J[journalctl -u ...]
-```
+[![Logs e eventos: onde procurar o quê](../assets/diagramas/05-logs-eventos.svg)](../assets/diagramas/05-logs-eventos.svg "Abrir o diagrama em tamanho real")
 
 - **Events são objetos da API**, por namespace, guardados por pouco tempo (padrão **1 hora**, flag `--event-ttl` do apiserver). Evento de ontem não existe mais.
 - **`kubectl logs` lê o arquivo do nó via kubelet.** Por isso só funciona se o kubelet do nó e o API server estiverem de pé.

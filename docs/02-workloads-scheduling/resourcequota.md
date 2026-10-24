@@ -17,14 +17,7 @@ Um **teto por namespace**: limita a soma de recursos e a quantidade de objetos q
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    U[kubectl apply Pod] --> API[kube-apiserver]
-    API -->|admissão ResourceQuota:<br/>usado + novo cabe no hard?| D{cabe?}
-    D -->|sim| E[grava no etcd<br/>e soma em status.used]
-    D -->|não| R[403 Forbidden<br/>exceeded quota]
-    RC[ReplicaSet / Job] -->|cria Pods pela API| API
-```
+[![ResourceQuota: a checagem na admissão](../assets/diagramas/02-resourcequota.svg)](../assets/diagramas/02-resourcequota.svg "Abrir o diagrama em tamanho real")
 
 - A checagem é feita **na admissão** (na criação), pelo API server. Pods que já existiam quando a quota foi criada **não** são removidos, mesmo que estourem o limite.
 - O uso atual fica em `status.used` da quota (`kubectl describe quota`).

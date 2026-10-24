@@ -25,19 +25,7 @@ Num cluster kubeadm o etcd roda como **static Pod** no control plane:
 - Certificados: `/etc/kubernetes/pki/etcd/`. O etcd exige TLS mútuo, então todo comando precisa de CA, certificado e chave.
 - O **kube-apiserver** é o único componente que conversa com o etcd (`--etcd-servers`).
 
-```mermaid
-flowchart LR
-    subgraph Backup
-        A[etcdctl snapshot save] -->|TLS :2379| B[(etcd rodando)]
-        A --> C[/snapshot.db/]
-    end
-    subgraph Restore
-        C --> D[etcdutl snapshot restore<br/>--data-dir /var/lib/etcd-restore]
-        D --> E[Editar etcd.yaml:<br/>hostPath → nova pasta]
-        E --> F[kubelet recria o Pod do etcd]
-        F --> G[kube-apiserver lê o estado restaurado]
-    end
-```
+[![Backup e restore do etcd](../assets/diagramas/01-etcd-backup-restore.svg)](../assets/diagramas/01-etcd-backup-restore.svg "Abrir o diagrama em tamanho real")
 
 **etcdctl × etcdutl**:
 

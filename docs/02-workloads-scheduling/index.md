@@ -27,12 +27,4 @@ O domínio de **o que roda e onde roda**: os controladores que mantêm as aplica
 
 ## Quem decide o quê
 
-```mermaid
-flowchart LR
-    U[kubectl apply] --> API[kube-apiserver<br/>admissão: ResourceQuota, LimitRange]
-    API --> C[Controladores<br/>Deployment, DaemonSet, Job...]
-    C -->|cria Pods| API
-    API --> S[kube-scheduler<br/>requests, taints, affinity]
-    S -->|escolhe o nó| K[kubelet<br/>aplica limits, QoS, ConfigMap/Secret]
-    H[HPA] -->|ajusta replicas| C
-```
+[![Workloads & Scheduling: visão geral](../assets/diagramas/02-visao-geral.svg)](../assets/diagramas/02-visao-geral.svg "Abrir o diagrama em tamanho real")

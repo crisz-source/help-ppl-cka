@@ -21,13 +21,7 @@ Na prova: resolver nomes de Service e de Pod de dentro de um Pod (e gravar a sa�
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    P[Pod<br/>/etc/resolv.conf] -->|consulta web-svc| S[Service kube-dns<br/>10.96.0.10:53]
-    S --> C[Pods do CoreDNS<br/>Deployment em kube-system]
-    C -->|plugin kubernetes:<br/>observa Services e EndpointSlices| API[kube-apiserver]
-    C -->|nomes de fora: plugin forward| U[DNS do nó / internet]
-```
+[![DNS no cluster](../assets/diagramas/03-dns.svg)](../assets/diagramas/03-dns.svg "Abrir o diagrama em tamanho real")
 
 As peças:
 

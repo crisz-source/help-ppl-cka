@@ -14,14 +14,7 @@ Três condições:
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    E[kubectl edit/patch PVC<br/>5Gi → 10Gi] --> A[kube-apiserver<br/>admissão confere allowVolumeExpansion]
-    A --> R[resizer do CSI<br/>aumenta o disco real]
-    R --> PV[PV com 10Gi]
-    PV --> K[kubelet do nó<br/>aumenta o filesystem]
-    K --> C[PVC status.capacity 10Gi]
-```
+[![Expansão de PVC](../assets/diagramas/04-expansao-pvc.svg)](../assets/diagramas/04-expansao-pvc.svg "Abrir o diagrama em tamanho real")
 
 São duas etapas:
 

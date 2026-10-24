@@ -4,3 +4,5 @@ dist/
 # gerados por scripts/sync-docs.mjs a partir de ../docs (a fonte única)
 src/content/docs/
 src/generated/
+# copiado de ../docs/assets por scripts/sync-docs.mjs
+public/assets/

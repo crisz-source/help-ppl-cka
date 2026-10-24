@@ -18,16 +18,7 @@ O sistema de arquivos de um container é **descartável**: se o container reinic
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    subgraph Pod
-        A[container app] -->|/cache| E[(emptyDir)]
-        B[container sidecar] -->|/cache| E
-    end
-    E -.->|apagado junto com o Pod| X[fim]
-    C[container agente] -->|/var/log do nó| H[(hostPath<br/>/var/log)]
-    H --- N[disco do nó<br/>fica depois do Pod]
-```
+[![emptyDir e hostPath](../assets/diagramas/04-volumes-emptydir-hostpath.svg)](../assets/diagramas/04-volumes-emptydir-hostpath.svg "Abrir o diagrama em tamanho real")
 
 - O `emptyDir` fica em `/var/lib/kubelet/pods/<uid-do-pod>/volumes/kubernetes.io~empty-dir/<nome>` no nó. Com `medium: Memory` vira um **tmpfs** (RAM): rápido, mas conta no limite de memória do container.
 - O `hostPath` monta o caminho do nó **onde o Pod caiu**. Pod recriado em outro nó = outro diretório.

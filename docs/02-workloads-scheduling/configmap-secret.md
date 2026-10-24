@@ -23,13 +23,7 @@ Os dois chegam ao Pod de três formas:
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    CM[ConfigMap / Secret<br/>no etcd] --> API[kube-apiserver]
-    API -->|kubelet busca ao criar o Pod| K[kubelet]
-    K -->|env: copiado na partida| C1[variáveis do container]
-    K -->|volume: arquivo por chave<br/>atualizado periodicamente| C2["/etc/config/CHAVE"]
-```
+[![ConfigMap e Secret: do etcd ao container](../assets/diagramas/02-configmap-secret.svg)](../assets/diagramas/02-configmap-secret.svg "Abrir o diagrama em tamanho real")
 
 No volume, **cada chave vira um arquivo** cujo nome é a chave e o conteúdo é o valor. Montar num diretório **esconde** o que a imagem tinha naquele diretório. Para pôr um arquivo só sem apagar o resto, use `subPath`, mas aí ele não é mais atualizado.
 

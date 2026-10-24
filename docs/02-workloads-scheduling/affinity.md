@@ -23,13 +23,7 @@ O `IgnoredDuringExecution` no nome quer dizer: se o label do nó mudar depois, o
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    P[Pod pendente] --> S[kube-scheduler]
-    S -->|filtro: required| F[nós possíveis]
-    F -->|pontuação: preferred<br/>soma dos weight| R[ranking]
-    R --> N[nó com maior nota]
-```
+[![Affinity: filtro e pontuação](../assets/diagramas/02-affinity.svg)](../assets/diagramas/02-affinity.svg "Abrir o diagrama em tamanho real")
 
 **nodeAffinity**: lógica dos termos.
 

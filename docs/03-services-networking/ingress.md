@@ -21,16 +21,7 @@ A API `networking.k8s.io/v1` do Ingress é **estável e congelada**: não recebe
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    U[Cliente externo] -->|loja.exemplo.com/api| LB[LoadBalancer ou NodePort<br/>do controller]
-    LB --> IC[Pods do Ingress controller<br/>proxy reverso]
-    IC -->|observa Ingress, IngressClass,<br/>Services, EndpointSlices| API[kube-apiserver]
-    IC -->|host + path batem| S1[Service api]
-    IC -->|outro path| S2[Service web]
-    S1 --> P1[Pods api]
-    S2 --> P2[Pods web]
-```
+[![Ingress: do cliente ao Pod](../assets/diagramas/03-ingress.svg)](../assets/diagramas/03-ingress.svg "Abrir o diagrama em tamanho real")
 
 1. O controller roda como Pods, normalmente expostos por um Service `LoadBalancer` (nuvem) ou `NodePort` (kubeadm/bare metal).
 2. Ele observa os Ingresses **da sua IngressClass** e monta a configuração do proxy.

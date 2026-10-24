@@ -16,13 +16,7 @@ O `persistentVolumeReclaimPolicy` do PV diz **o que acontece com o PV e com o di
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    D[kubectl delete pvc] --> C{reclaimPolicy do PV}
-    C -->|Retain| R[PV Released<br/>claimRef antigo continua<br/>dados intactos]
-    C -->|Delete| X[provisionador apaga o disco<br/>PV removido]
-    R -->|admin limpa claimRef| A[PV Available<br/>pode ligar de novo]
-```
+[![reclaimPolicy: Retain × Delete](../assets/diagramas/04-reclaim-policy.svg)](../assets/diagramas/04-reclaim-policy.svg "Abrir o diagrama em tamanho real")
 
 O ponto que confunde: **`Released` não é `Available`**. O PV `Released` ainda guarda em `spec.claimRef` o PVC antigo (nome, namespace e UID). Um PVC novo, mesmo com o mesmo nome, tem outro UID e **não liga**. Para reaproveitar o PV:
 

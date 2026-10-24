@@ -24,19 +24,7 @@ Na prova, drain aparece sozinho ("put node X into maintenance") ou como parte do
 - O Pod despejado é apagado. O **controller** dono dele (ReplicaSet, StatefulSet…) percebe que faltam réplicas e cria um Pod novo, que o scheduler coloca em outro nó.
 - **uncordon**: volta `spec.unschedulable` para `false` e remove o taint.
 
-```mermaid
-sequenceDiagram
-    participant U as kubectl drain
-    participant API as kube-apiserver
-    participant S as kube-scheduler
-    participant RS as controller (ReplicaSet)
-    U->>API: PATCH node (unschedulable=true)
-    U->>API: POST Eviction (para cada Pod)
-    API-->>U: aceito, ou 429 se violar PDB
-    API->>RS: Pod removido
-    RS->>API: cria Pod substituto
-    S->>API: agenda o Pod em outro nó
-```
+[![kubectl drain: a sequência](../assets/diagramas/01-drain-cordon-uncordon.svg)](../assets/diagramas/01-drain-cordon-uncordon.svg "Abrir o diagrama em tamanho real")
 
 Por padrão o drain **se recusa** a continuar em três casos:
 

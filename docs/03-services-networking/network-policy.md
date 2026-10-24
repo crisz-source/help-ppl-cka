@@ -18,14 +18,7 @@ Para uma conexão de A para B passar, é preciso que **o egress de A permita** e
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    API[kube-apiserver<br/>NetworkPolicy gravada] -->|observa| CNI[Agente do CNI em cada nó<br/>Calico, Cilium...]
-    CNI -->|regras iptables / eBPF| N[Nó]
-    A[Pod frontend] -->|egress de A permite?| N
-    N -->|ingress de B permite?| B[Pod api]
-    X[Pod qualquer] -.->|bloqueado| N
-```
+[![NetworkPolicy: quem aplica a regra](../assets/diagramas/03-network-policy.svg)](../assets/diagramas/03-network-policy.svg "Abrir o diagrama em tamanho real")
 
 Os campos de uma política:
 

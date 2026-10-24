@@ -21,17 +21,7 @@ Os estados de Pod com problema que mais caem na prova. Cada um aponta para **uma
 
 ## Como funciona por dentro
 
-```mermaid
-flowchart LR
-    A[Pod criado] --> S{scheduler<br/>achou nó?}
-    S -->|não| P[Pending]
-    S -->|sim| K{kubelet: volume,<br/>rede, imagem}
-    K -->|imagem falhou| I[ImagePullBackOff]
-    K -->|config falhou| CC[CreateContainerConfigError]
-    K -->|ok| R{processo<br/>continua vivo?}
-    R -->|morre e reinicia| CL[CrashLoopBackOff]
-    R -->|sim| OK[Running]
-```
+[![Pods: de criado a Running](../assets/diagramas/05-pods.svg)](../assets/diagramas/05-pods.svg "Abrir o diagrama em tamanho real")
 
 Exit codes que ajudam a fechar o diagnóstico de `CrashLoopBackOff`:
 
