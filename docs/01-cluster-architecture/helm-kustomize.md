@@ -239,9 +239,9 @@ kubectl get all -n staging                                  # recursos no namesp
 kubectl get deploy -n staging -o jsonpath='{.items[*].spec.template.spec.containers[*].image}'
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Instale o metrics-server com Helm no lab kubeadm. Ele costuma precisar de `--set args='{--kubelet-insecure-tls}'` em labs com certificados de kubelet autoassinados. Depois teste `kubectl top nodes`.
-- Faça `helm upgrade` mudando um valor, depois `helm history` e `helm rollback`. Em seguida rode `kubectl get secrets -n <ns> | grep sh.helm` e veja onde o histórico mora.
-- Monte base + overlays `dev` e `prod` e compare `kubectl kustomize` dos dois com `diff`.
-- Use `helm template ... > render.yaml` e coloque o resultado como `resources` numa Kustomize, um padrão comum para customizar charts.
+    - Instale o metrics-server com Helm no lab kubeadm. Ele costuma precisar de `--set args='{--kubelet-insecure-tls}'` em labs com certificados de kubelet autoassinados. Depois teste `kubectl top nodes`.
+    - Faça `helm upgrade` mudando um valor, depois `helm history` e `helm rollback`. Em seguida rode `kubectl get secrets -n <ns> | grep sh.helm` e veja onde o histórico mora.
+    - Monte base + overlays `dev` e `prod` e compare `kubectl kustomize` dos dois com `diff`.
+    - Use `helm template ... > render.yaml` e coloque o resultado como `resources` numa Kustomize, um padrão comum para customizar charts.

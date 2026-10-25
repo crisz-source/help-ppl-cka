@@ -65,100 +65,106 @@ kubectl explain pod.spec.affinity.podAntiAffinity
 
 **nodeAffinity**: regra + preferência:
 
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: com-node-affinity
-spec:
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-          - matchExpressions:          # termo 1 (OU com outros termos)
-              - key: disco
-                operator: In
-                values: ["ssd", "nvme"]
-              - key: kubernetes.io/os  # E com a expressão acima
-                operator: In
-                values: ["linux"]
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 80                   # 1 a 100: soma pontos, não obriga
-          preference:
-            matchExpressions:
-              - key: topology.kubernetes.io/zone
-                operator: In
-                values: ["brazilsouth-1"]
-  containers:
-    - name: c
-      image: nginx:1.27
-```
+??? example "YAML completo: Pod"
+
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: com-node-affinity
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:          # termo 1 (OU com outros termos)
+                  - key: disco
+                    operator: In
+                    values: ["ssd", "nvme"]
+                  - key: kubernetes.io/os  # E com a expressão acima
+                    operator: In
+                    values: ["linux"]
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 80                   # 1 a 100: soma pontos, não obriga
+              preference:
+                matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values: ["brazilsouth-1"]
+      containers:
+        - name: c
+          image: nginx:1.27
+    ```
 
 **podAntiAffinity**: uma réplica por nó (o caso mais cobrado):
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: web
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: web
-  template:
+??? example "YAML completo: Deployment"
+
+    ```yaml
+    apiVersion: apps/v1
+    kind: Deployment
     metadata:
-      labels:
-        app: web
+      name: web
     spec:
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchLabels:
-                  app: web               # longe das outras réplicas dele mesmo
-              topologyKey: kubernetes.io/hostname
-      containers:
-        - name: web
-          image: nginx:1.27
-```
+      replicas: 3
+      selector:
+        matchLabels:
+          app: web
+      template:
+        metadata:
+          labels:
+            app: web
+        spec:
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app: web               # longe das outras réplicas dele mesmo
+                  topologyKey: kubernetes.io/hostname
+          containers:
+            - name: web
+              image: nginx:1.27
+    ```
 
 **podAffinity**: rodar no mesmo nó que o cache, preferindo não empilhar réplicas:
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: api
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: api
-  template:
+??? example "YAML completo: Deployment"
+
+    ```yaml
+    apiVersion: apps/v1
+    kind: Deployment
     metadata:
-      labels:
-        app: api
+      name: api
     spec:
-      affinity:
-        podAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchLabels:
-                  app: cache
-              topologyKey: kubernetes.io/hostname
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:           # no preferred, o termo vem dentro de podAffinityTerm
-                labelSelector:
-                  matchLabels:
-                    app: api
-                topologyKey: kubernetes.io/hostname
-      containers:
-        - name: api
-          image: nginx:1.27
-```
+      replicas: 2
+      selector:
+        matchLabels:
+          app: api
+      template:
+        metadata:
+          labels:
+            app: api
+        spec:
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app: cache
+                  topologyKey: kubernetes.io/hostname
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:           # no preferred, o termo vem dentro de podAffinityTerm
+                    labelSelector:
+                      matchLabels:
+                        app: api
+                    topologyKey: kubernetes.io/hostname
+          containers:
+            - name: api
+              image: nginx:1.27
+    ```
 
 Para espalhar réplicas de forma equilibrada (e não só "uma por nó"), existe `topologySpreadConstraints` com `maxSkew`. Está na mesma área da documentação: *Pod Topology Spread Constraints*.
 
@@ -259,9 +265,9 @@ Events:
   Warning  FailedScheduling  5s    default-scheduler  0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 node(s) didn't match pod anti-affinity rules. ...
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Troque a anti-affinity para `preferred` e escale para 4: veja as réplicas extras empilharem em vez de ficarem `Pending`.
-- Remova o label `tier` de `w2` com os Pods rodando e confirme que nada muda (`IgnoredDuringExecution`). Depois `kubectl rollout restart deployment frontend` e veja o Pod de `w2` ficar `Pending`.
-- Faça um `podAffinity` para um Deployment `api` acompanhar um Pod `cache` e mova o cache de nó (apague e recrie com `nodeName`).
-- Ao terminar, remova os labels: `kubectl label nodes w1 w2 tier-`.
+    - Troque a anti-affinity para `preferred` e escale para 4: veja as réplicas extras empilharem em vez de ficarem `Pending`.
+    - Remova o label `tier` de `w2` com os Pods rodando e confirme que nada muda (`IgnoredDuringExecution`). Depois `kubectl rollout restart deployment frontend` e veja o Pod de `w2` ficar `Pending`.
+    - Faça um `podAffinity` para um Deployment `api` acompanhar um Pod `cache` e mova o cache de nó (apague e recrie com `nodeName`).
+    - Ao terminar, remova os labels: `kubectl label nodes w1 w2 tier-`.

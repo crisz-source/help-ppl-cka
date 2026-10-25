@@ -71,38 +71,40 @@ kubectl edit deployment web
 
 Três Pods quebrados de propósito, cada um com uma falha clássica (bons para treinar a leitura do `describe`):
 
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: imagem-errada
-spec:
-  containers:
-    - name: c
-      image: nginx:1.999-naoexiste      # ErrImagePull → ImagePullBackOff
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: comando-errado
-spec:
-  containers:
-    - name: c
-      image: busybox:1.36
-      command: ["sh", "-c", "comando-que-nao-existe"]   # exit 127 → CrashLoopBackOff
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: grande-demais
-spec:
-  containers:
-    - name: c
-      image: nginx:1.27
-      resources:
-        requests:
-          cpu: "64"                     # nenhum nó tem 64 CPUs → Pending (Insufficient cpu)
-```
+??? example "YAML completo: Pod"
+
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: imagem-errada
+    spec:
+      containers:
+        - name: c
+          image: nginx:1.999-naoexiste      # ErrImagePull → ImagePullBackOff
+    ---
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: comando-errado
+    spec:
+      containers:
+        - name: c
+          image: busybox:1.36
+          command: ["sh", "-c", "comando-que-nao-existe"]   # exit 127 → CrashLoopBackOff
+    ---
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: grande-demais
+    spec:
+      containers:
+        - name: c
+          image: nginx:1.27
+          resources:
+            requests:
+              cpu: "64"                     # nenhum nó tem 64 CPUs → Pending (Insufficient cpu)
+    ```
 
 Causas de `Pending` e a mensagem que aparece em `FailedScheduling`:
 
@@ -186,9 +188,9 @@ NAME   READY   UP-TO-DATE   AVAILABLE   AGE
 api    2/2     2            2           90s
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Aplique os três Pods quebrados do YAML de referência e, para cada um, diga a causa **só pelo `describe`**, antes de olhar o YAML.
-- Crie um Pod com `command: ["echo", "oi"]` e veja `CrashLoopBackOff` com exit code 0.
-- Crie um Pod com liveness probe numa porta errada e observe os restarts com `Running`.
-- Use `kubectl debug -it <pod> --image=busybox:1.36 --target=<container>` num Pod de imagem sem shell (ex.: `registry.k8s.io/pause`).
+    - Aplique os três Pods quebrados do YAML de referência e, para cada um, diga a causa **só pelo `describe`**, antes de olhar o YAML.
+    - Crie um Pod com `command: ["echo", "oi"]` e veja `CrashLoopBackOff` com exit code 0.
+    - Crie um Pod com liveness probe numa porta errada e observe os restarts com `Running`.
+    - Use `kubectl debug -it <pod> --image=busybox:1.36 --target=<container>` num Pod de imagem sem shell (ex.: `registry.k8s.io/pause`).

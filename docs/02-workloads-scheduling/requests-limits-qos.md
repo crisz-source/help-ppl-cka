@@ -67,36 +67,38 @@ kubectl describe limitrange -n dev
 
 ## YAML de referência
 
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: burstable
-spec:
-  containers:
-    - name: app
-      image: nginx:1.27
-      resources:
-        requests:
-          cpu: 100m                  # o scheduler reserva 0,1 núcleo
-          memory: 128Mi
-        limits:
-          cpu: 500m                  # acima disso: throttling
-          memory: 256Mi              # acima disso: OOMKilled
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: guaranteed
-spec:
-  containers:
-    - name: app
-      image: nginx:1.27
-      resources:
-        limits:                      # só limits: requests = limits → Guaranteed
-          cpu: 250m
-          memory: 128Mi
-```
+??? example "YAML completo: Pod"
+
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: burstable
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.27
+          resources:
+            requests:
+              cpu: 100m                  # o scheduler reserva 0,1 núcleo
+              memory: 128Mi
+            limits:
+              cpu: 500m                  # acima disso: throttling
+              memory: 256Mi              # acima disso: OOMKilled
+    ---
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: guaranteed
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.27
+          resources:
+            limits:                      # só limits: requests = limits → Guaranteed
+              cpu: 250m
+              memory: 128Mi
+    ```
 
 LimitRange com padrões e teto por container:
 
@@ -220,9 +222,9 @@ besteffort:BestEffort
 critical:Guaranteed
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Aplique o Pod `estoura` do YAML de referência e leia `Last State` com `kubectl describe pod estoura`: `OOMKilled`, exit 137.
-- Crie um Pod com `requests.cpu` maior que o `Allocatable` de qualquer worker (ex.: `cpu: "64"`) e leia o evento `Insufficient cpu`.
-- Crie um LimitRange com `defaultRequest` no namespace e recrie o `besteffort`: veja a classe virar `Burstable`.
-- Tire o `cpu` só do `limits` do `critical` e confira que ele deixa de ser Guaranteed.
+    - Aplique o Pod `estoura` do YAML de referência e leia `Last State` com `kubectl describe pod estoura`: `OOMKilled`, exit 137.
+    - Crie um Pod com `requests.cpu` maior que o `Allocatable` de qualquer worker (ex.: `cpu: "64"`) e leia o evento `Insufficient cpu`.
+    - Crie um LimitRange com `defaultRequest` no namespace e recrie o `besteffort`: veja a classe virar `Burstable`.
+    - Tire o `cpu` só do `limits` do `critical` e confira que ele deixa de ser Guaranteed.

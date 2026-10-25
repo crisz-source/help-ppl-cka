@@ -67,31 +67,33 @@ kubectl top pod -l app=web --sort-by=cpu --no-headers | head -1   # o Pod que ma
 
 O padrão de log do Kubernetes é: **a aplicação escreve no stdout/stderr**. Uma aplicação que escreve num arquivo dentro do container não aparece no `kubectl logs`; a solução clássica é um **sidecar** que lê o arquivo e o repete no stdout dele:
 
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: app-com-sidecar
-spec:
-  containers:
-    - name: app
-      image: busybox:1.36
-      command: ["sh", "-c", "i=0; while true; do echo \"$i $(date)\" >> /var/log/app.log; i=$((i+1)); sleep 2; done"]
-      volumeMounts:
+??? example "YAML completo: Pod"
+
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: app-com-sidecar
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh", "-c", "i=0; while true; do echo \"$i $(date)\" >> /var/log/app.log; i=$((i+1)); sleep 2; done"]
+          volumeMounts:
+            - name: logs
+              mountPath: /var/log
+      initContainers:
+        - name: log-sidecar                 # sidecar nativo: init container com restartPolicy Always
+          image: busybox:1.36
+          restartPolicy: Always
+          command: ["sh", "-c", "tail -n+1 -F /var/log/app.log"]
+          volumeMounts:
+            - name: logs
+              mountPath: /var/log
+      volumes:
         - name: logs
-          mountPath: /var/log
-  initContainers:
-    - name: log-sidecar                 # sidecar nativo: init container com restartPolicy Always
-      image: busybox:1.36
-      restartPolicy: Always
-      command: ["sh", "-c", "tail -n+1 -F /var/log/app.log"]
-      volumeMounts:
-        - name: logs
-          mountPath: /var/log
-  volumes:
-    - name: logs
-      emptyDir: {}
-```
+          emptyDir: {}
+    ```
 
 ```bash
 kubectl logs app-com-sidecar -c log-sidecar -f    # agora o log do arquivo aparece aqui
@@ -157,9 +159,9 @@ $ kubectl logs app-com-sidecar -n logs-lab -c app | wc -l
 0
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- No nó onde o Pod roda, ache o mesmo log em `/var/log/pods/logs-lab_app-com-sidecar_*/log-sidecar/0.log` e compare com o `kubectl logs`.
-- Use `crictl logs` com o ID do container do sidecar e confira que é o mesmo conteúdo.
-- Crie um Pod que falha e use `kubectl events --for pod/<nome> --watch` para ver os eventos chegando.
-- Instale o metrics-server e pratique `kubectl top pods --sort-by=memory -A`.
+    - No nó onde o Pod roda, ache o mesmo log em `/var/log/pods/logs-lab_app-com-sidecar_*/log-sidecar/0.log` e compare com o `kubectl logs`.
+    - Use `crictl logs` com o ID do container do sidecar e confira que é o mesmo conteúdo.
+    - Crie um Pod que falha e use `kubectl events --for pod/<nome> --watch` para ver os eventos chegando.
+    - Instale o metrics-server e pratique `kubectl top pods --sort-by=memory -A`.

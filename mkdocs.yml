@@ -45,6 +45,19 @@ markdown_extensions:
 
 nav:
   - Início: index.md
+  - Trilhas:
+      - Começar do zero: trilhas/iniciante.md
+      - Fundamentos: trilhas/fundamentos.md
+      - Revisão rápida: trilhas/revisao-rapida.md
+      - Comandos de memória: trilhas/comandos-de-memoria.md
+      - Treinar troubleshooting:
+          - trilhas/troubleshooting/index.md
+          - Pod não inicia: trilhas/troubleshooting/pod-nao-inicia.md
+          - Aplicação não responde: trilhas/troubleshooting/aplicacao-nao-responde.md
+          - Agendamento: trilhas/troubleshooting/agendamento.md
+          - Armazenamento: trilhas/troubleshooting/armazenamento.md
+          - Nó NotReady: trilhas/troubleshooting/no-notready.md
+          - Control plane: trilhas/troubleshooting/control-plane.md
   - "1. Cluster Architecture, Installation & Configuration (25%)":
       - 01-cluster-architecture/index.md
       - RBAC: 01-cluster-architecture/rbac.md

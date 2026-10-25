@@ -61,32 +61,34 @@ kubectl explain pod.spec.volumes.hostPath
 
 `emptyDir` compartilhado entre dois containers:
 
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: app
-spec:
-  containers:
-    - name: app
-      image: busybox:1.36
-      command: ["sh", "-c", "while true; do date >> /cache/log.txt; sleep 5; done"]
-      volumeMounts:
+??? example "YAML completo: Pod"
+
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: app
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh", "-c", "while true; do date >> /cache/log.txt; sleep 5; done"]
+          volumeMounts:
+            - name: cache
+              mountPath: /cache
+        - name: sidecar
+          image: busybox:1.36
+          command: ["sh", "-c", "tail -F /dados/log.txt"]
+          volumeMounts:
+            - name: cache
+              mountPath: /dados               # mesmo volume, outro caminho
+              readOnly: true
+      volumes:
         - name: cache
-          mountPath: /cache
-    - name: sidecar
-      image: busybox:1.36
-      command: ["sh", "-c", "tail -F /dados/log.txt"]
-      volumeMounts:
-        - name: cache
-          mountPath: /dados               # mesmo volume, outro caminho
-          readOnly: true
-  volumes:
-    - name: cache
-      emptyDir:
-        sizeLimit: 100Mi                  # passou disso: o Pod é expulso
-        # medium: Memory                  # tmpfs na RAM
-```
+          emptyDir:
+            sizeLimit: 100Mi                  # passou disso: o Pod é expulso
+            # medium: Memory                  # tmpfs na RAM
+    ```
 
 `hostPath` para ler os logs do nó:
 
@@ -195,9 +197,9 @@ touch: /node-logs/x: Read-only file system
 command terminated with exit code 1
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Force o restart do `writer`: no nó onde o Pod está, `sudo crictl stop $(sudo crictl ps --name writer -q)`. O `RESTARTS` vai a 1 e o arquivo continua lá. Apague o Pod e recrie: o arquivo sumiu. (`kubectl exec ... -- kill 1` não serve: o PID 1 do container ignora o sinal e nada reinicia.)
-- Troque o `emptyDir` por `medium: Memory` e confira com `df -h /out` que virou `tmpfs`.
-- Use `hostPath` com `type: Directory` num caminho que não existe e leia o evento.
-- Ache o diretório do `emptyDir` no nó, em `/var/lib/kubelet/pods/<uid>/volumes/`.
+    - Force o restart do `writer`: no nó onde o Pod está, `sudo crictl stop $(sudo crictl ps --name writer -q)`. O `RESTARTS` vai a 1 e o arquivo continua lá. Apague o Pod e recrie: o arquivo sumiu. (`kubectl exec ... -- kill 1` não serve: o PID 1 do container ignora o sinal e nada reinicia.)
+    - Troque o `emptyDir` por `medium: Memory` e confira com `df -h /out` que virou `tmpfs`.
+    - Use `hostPath` com `type: Directory` num caminho que não existe e leia o evento.
+    - Ache o diretório do `emptyDir` no nó, em `/var/lib/kubelet/pods/<uid>/volumes/`.

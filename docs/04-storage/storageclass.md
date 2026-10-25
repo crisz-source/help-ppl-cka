@@ -57,31 +57,33 @@ kubectl explain storageclass
 
 ## YAML de referência
 
-```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: rapido
-  annotations:
-    storageclass.kubernetes.io/is-default-class: "true"   # classe padrão
-provisioner: disk.csi.azure.com          # driver CSI que cria o disco
-parameters:
-  skuName: Premium_LRS                   # depende do provisionador
-reclaimPolicy: Retain                    # padrão seria Delete
-volumeBindingMode: WaitForFirstConsumer
-allowVolumeExpansion: true
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: dados
-spec:
-  storageClassName: rapido               # sem o campo: recebe a classe padrão
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: 5Gi                       # o PV nasce com exatamente 5Gi
-```
+??? example "YAML completo: StorageClass + PersistentVolumeClaim"
+
+    ```yaml
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+      name: rapido
+      annotations:
+        storageclass.kubernetes.io/is-default-class: "true"   # classe padrão
+    provisioner: disk.csi.azure.com          # driver CSI que cria o disco
+    parameters:
+      skuName: Premium_LRS                   # depende do provisionador
+    reclaimPolicy: Retain                    # padrão seria Delete
+    volumeBindingMode: WaitForFirstConsumer
+    allowVolumeExpansion: true
+    ---
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: dados
+    spec:
+      storageClassName: rapido               # sem o campo: recebe a classe padrão
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 5Gi                       # o PV nasce com exatamente 5Gi
+    ```
 
 Classe sem provisionador, para volumes locais estáticos (é a que se usa com PVs `local`):
 
@@ -177,9 +179,9 @@ Events:
   Normal  WaitForFirstConsumer  5s    persistentvolume-controller  waiting for first consumer to be created before binding
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Crie um Pod que usa o PVC `data`: como a classe não provisiona nada, o evento muda para a falta de PV. Crie um PV `local` ou `hostPath` com `storageClassName: local-wait` e veja ligar.
-- Crie um PVC sem classe **antes** de criar a classe padrão. Depois crie a classe e confira que o PVC recebeu `local-wait`.
-- Instale o local-path-provisioner e repita com provisionamento dinâmico de verdade: o PV aparece sozinho, com o tamanho exato.
-- Ao terminar, apague a classe ou tire a anotação de padrão para não afetar os próximos exercícios.
+    - Crie um Pod que usa o PVC `data`: como a classe não provisiona nada, o evento muda para a falta de PV. Crie um PV `local` ou `hostPath` com `storageClassName: local-wait` e veja ligar.
+    - Crie um PVC sem classe **antes** de criar a classe padrão. Depois crie a classe e confira que o PVC recebeu `local-wait`.
+    - Instale o local-path-provisioner e repita com provisionamento dinâmico de verdade: o PV aparece sozinho, com o tamanho exato.
+    - Ao terminar, apague a classe ou tire a anotação de padrão para não afetar os próximos exercícios.

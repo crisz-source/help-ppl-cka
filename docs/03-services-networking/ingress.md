@@ -88,44 +88,46 @@ curl --resolve loja.exemplo.com:443:<IP> https://loja.exemplo.com/ -k
 
 ## YAML de referência
 
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: loja
-  namespace: shop                   # mesmo namespace dos Services de backend
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /   # específico do ingress-nginx
-spec:
-  ingressClassName: nginx           # qual controller cuida deste Ingress
-  tls:
-    - hosts:
-        - loja.exemplo.com
-      secretName: loja-tls          # Secret tipo kubernetes.io/tls, no mesmo namespace
-  defaultBackend:                   # opcional: quando nenhuma regra casa
-    service:
-      name: web-svc
-      port:
-        number: 80
-  rules:
-    - host: loja.exemplo.com        # omitir = qualquer host
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix        # obrigatório: Prefix | Exact | ImplementationSpecific
-            backend:
-              service:
-                name: api-svc
-                port:
-                  number: 8080      # porta do SERVICE (ou port.name)
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: web-svc
-                port:
-                  number: 80
-```
+??? example "YAML completo: Ingress"
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: loja
+      namespace: shop                   # mesmo namespace dos Services de backend
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /   # específico do ingress-nginx
+    spec:
+      ingressClassName: nginx           # qual controller cuida deste Ingress
+      tls:
+        - hosts:
+            - loja.exemplo.com
+          secretName: loja-tls          # Secret tipo kubernetes.io/tls, no mesmo namespace
+      defaultBackend:                   # opcional: quando nenhuma regra casa
+        service:
+          name: web-svc
+          port:
+            number: 80
+      rules:
+        - host: loja.exemplo.com        # omitir = qualquer host
+          http:
+            paths:
+              - path: /api
+                pathType: Prefix        # obrigatório: Prefix | Exact | ImplementationSpecific
+                backend:
+                  service:
+                    name: api-svc
+                    port:
+                      number: 8080      # porta do SERVICE (ou port.name)
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: web-svc
+                    port:
+                      number: 80
+    ```
 
 `IngressClass` (normalmente criada pela instalação do controller):
 
@@ -204,10 +206,10 @@ $ kubectl get ingress shop-ingress -n shop -o jsonpath='{.spec.rules[0].http.pat
 Prefix Prefix
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- No lab kubeadm, instale um controller em modo NodePort e repita o exercício. Libere o NodePort no NSG para testar de fora.
-- Troque `/api*` por `/api` (pathType `Exact`) e compare `curl .../api` com `curl .../api/users`.
-- Apague o `ingressClassName` e veja o Ingress parar de funcionar. Depois marque a IngressClass como padrão e veja voltar.
-- Escale `api-svc` para 0 réplicas e observe o 503 do controller. Compare com o 404 de um host que não existe.
-- Crie um certificado autoassinado (`openssl req -x509 -nodes -newkey rsa:2048 -subj "/CN=shop.example.com" -keyout tls.key -out tls.crt`), monte o Secret e ative o TLS.
+    - No lab kubeadm, instale um controller em modo NodePort e repita o exercício. Libere o NodePort no NSG para testar de fora.
+    - Troque `/api*` por `/api` (pathType `Exact`) e compare `curl .../api` com `curl .../api/users`.
+    - Apague o `ingressClassName` e veja o Ingress parar de funcionar. Depois marque a IngressClass como padrão e veja voltar.
+    - Escale `api-svc` para 0 réplicas e observe o 503 do controller. Compare com o 404 de um host que não existe.
+    - Crie um certificado autoassinado (`openssl req -x509 -nodes -newkey rsa:2048 -subj "/CN=shop.example.com" -keyout tls.key -out tls.crt`), monte o Secret e ative o TLS.

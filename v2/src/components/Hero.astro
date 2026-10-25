@@ -1,7 +1,8 @@
 ---
-// Página inicial do layout 2: título, terminal de demonstração e cards dos domínios com o
-// progresso de estudo. Os domínios e páginas vêm de docs/index.md e do nav do mkdocs.yml
-// (via src/generated/nav.json), então nada aqui precisa ser editado quando entra conteúdo novo.
+// Página inicial do layout 2: título, terminal de demonstração, cards das trilhas e cards dos
+// domínios com o progresso de estudo. Textos, trilhas, domínios e páginas vêm de docs/index.md e do
+// nav do mkdocs.yml (via src/generated/nav.json), então nada aqui precisa ser editado quando entra
+// conteúdo novo.
 import nav from '../generated/nav.json';
 
 const PAGE_TITLE_ID = '_top'; // id que o Starlight usa no título (não é exportado pelo pacote)
@@ -34,6 +35,7 @@ const demo = [
 		<p class="kicker">Certified Kubernetes Administrator</p>
 		<h1 id={PAGE_TITLE_ID} data-page-title>{data.hero?.title ?? data.title}</h1>
 		{data.hero?.tagline && <p class="tagline" set:html={data.hero.tagline} />}
+		{nav.home.intro.map((html) => <p class="intro" set:html={html} />)}
 		<div class="acoes">
 			{
 				comConteudo.map((d, i) => (
@@ -58,6 +60,26 @@ const demo = [
 		}<span class="d-linha d-cursor"><b>$ </b><i class="cursor">▋</i></span></pre>
 	</div>
 </div>
+
+<section class="dominios" aria-labelledby="titulo-trilhas">
+	<div class="dominios-topo">
+		<h2 id="titulo-trilhas">{nav.home.tituloTrilhas}</h2>
+	</div>
+	<div class="cards trilhas">
+		{
+			nav.home.trilhas.map((t) => {
+				const Tag = t.href ? 'a' : 'div';
+				return (
+					<Tag class:list={['card', { vazio: !t.href }]} href={t.href ?? undefined}>
+						<h3>{t.titulo}</h3>
+						<p class="descricao" set:html={t.descricao} />
+						<p class="status">{t.meta}</p>
+					</Tag>
+				);
+			})
+		}
+	</div>
+</section>
 
 <section class="dominios" aria-labelledby="titulo-dominios">
 	<div class="dominios-topo">
@@ -171,6 +193,15 @@ const demo = [
 		font-size: clamp(1rem, 0.9rem + 0.4vw, 1.15rem);
 		color: var(--sl-color-gray-2);
 		max-width: 34rem;
+	}
+	.intro {
+		margin-top: 0.75rem;
+		max-width: 34rem;
+		color: var(--sl-color-gray-2);
+	}
+	.intro + .intro {
+		font-size: var(--sl-text-sm);
+		color: var(--sl-color-gray-3);
 	}
 	.acoes {
 		display: flex;
@@ -357,6 +388,15 @@ const demo = [
 		border-radius: 999px;
 		background: linear-gradient(var(--sl-color-gray-3), var(--sl-color-gray-3)) 0 0 / calc(var(--peso) * 100% / 30) 100% no-repeat,
 			var(--sl-color-gray-6);
+	}
+	.trilhas {
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+		margin-bottom: 1.5rem;
+	}
+	.descricao {
+		margin: 0;
+		font-size: var(--sl-text-sm);
+		color: var(--sl-color-gray-2);
 	}
 	.status {
 		margin: auto 0 0;

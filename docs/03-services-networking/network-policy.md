@@ -74,52 +74,54 @@ kubectl explain networkpolicy.spec.ingress.from
 
 Política completa (exemplo da documentação, comentado):
 
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: api-allow
-  namespace: shop
-spec:
-  podSelector:
-    matchLabels:
-      app: api                      # a política vale para os Pods app=api deste namespace
-  policyTypes:
-    - Ingress
-    - Egress
-  ingress:
-    - from:
-        - podSelector:              # item 1: Pods frontend DESTE namespace
-            matchLabels:
-              app: frontend
-        - namespaceSelector:        # item 2 (OU): qualquer Pod do namespace monitoring
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring
-      ports:
-        - protocol: TCP
-          port: 8080                # porta do CONTAINER (não a do Service)
-  egress:
-    - to:
-        - ipBlock:
-            cidr: 10.0.0.0/24       # banco fora do cluster
-            except:
-              - 10.0.0.99/32
-      ports:
-        - protocol: TCP
-          port: 5432
-    - to:                           # liberar DNS, senão nenhum nome resolve
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-          podSelector:
-            matchLabels:
-              k8s-app: kube-dns
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
-```
+??? example "YAML completo: NetworkPolicy"
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: api-allow
+      namespace: shop
+    spec:
+      podSelector:
+        matchLabels:
+          app: api                      # a política vale para os Pods app=api deste namespace
+      policyTypes:
+        - Ingress
+        - Egress
+      ingress:
+        - from:
+            - podSelector:              # item 1: Pods frontend DESTE namespace
+                matchLabels:
+                  app: frontend
+            - namespaceSelector:        # item 2 (OU): qualquer Pod do namespace monitoring
+                matchLabels:
+                  kubernetes.io/metadata.name: monitoring
+          ports:
+            - protocol: TCP
+              port: 8080                # porta do CONTAINER (não a do Service)
+      egress:
+        - to:
+            - ipBlock:
+                cidr: 10.0.0.0/24       # banco fora do cluster
+                except:
+                  - 10.0.0.99/32
+          ports:
+            - protocol: TCP
+              port: 5432
+        - to:                           # liberar DNS, senão nenhum nome resolve
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: kube-system
+              podSelector:
+                matchLabels:
+                  k8s-app: kube-dns
+          ports:
+            - protocol: UDP
+              port: 53
+            - protocol: TCP
+              port: 53
+    ```
 
 **E × OU**: o detalhe que mais derruba na prova. Muda tudo com um `-`:
 
@@ -147,42 +149,44 @@ ingress:
 
 Políticas padrão (o ponto de partida de "nega tudo e libera o necessário"):
 
-```yaml
-# Nega todo ingress para todos os Pods do namespace
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: default-deny-ingress
-  namespace: shop
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress                       # sem bloco ingress = nada permitido
----
-# Nega todo egress (lembre de liberar DNS depois)
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: default-deny-egress
-  namespace: shop
-spec:
-  podSelector: {}
-  policyTypes:
-    - Egress
----
-# Libera todo ingress (anula o deny para esses Pods, porque políticas somam)
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-all-ingress
-  namespace: shop
-spec:
-  podSelector: {}
-  ingress:
-    - {}                            # uma regra vazia = qualquer origem, qualquer porta
-  policyTypes:
-    - Ingress
-```
+??? example "YAML completo: NetworkPolicy"
+
+    ```yaml
+    # Nega todo ingress para todos os Pods do namespace
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: default-deny-ingress
+      namespace: shop
+    spec:
+      podSelector: {}
+      policyTypes:
+        - Ingress                       # sem bloco ingress = nada permitido
+    ---
+    # Nega todo egress (lembre de liberar DNS depois)
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: default-deny-egress
+      namespace: shop
+    spec:
+      podSelector: {}
+      policyTypes:
+        - Egress
+    ---
+    # Libera todo ingress (anula o deny para esses Pods, porque políticas somam)
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-all-ingress
+      namespace: shop
+    spec:
+      podSelector: {}
+      ingress:
+        - {}                            # uma regra vazia = qualquer origem, qualquer porta
+      policyTypes:
+        - Ingress
+    ```
 
 ## Na documentação oficial
 
@@ -273,10 +277,10 @@ pod "t3" deleted
 pod shop/t3 terminated (Error)
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Confira o CNI do lab kubeadm. Se for Flannel, aplique uma default-deny e veja que nada muda; com Calico ou Cilium, o tráfego para.
-- Troque a solução para a forma E (um item só) e repita os quatro testes: veja quais mudam de resultado.
-- Aplique uma default-deny de **egress** no namespace `shop` e veja o `wget http://api-svc` falhar por DNS. Depois libere a porta 53 e veja voltar.
-- Libere a porta do Service (ex.: `80`) em vez da do container (`8080`) e confirme que o tráfego continua bloqueado.
-- Use `ipBlock` para liberar egress só para um IP fora do cluster (ex.: o IP privado de outra VM do lab) e teste com `nc -zv`.
+    - Confira o CNI do lab kubeadm. Se for Flannel, aplique uma default-deny e veja que nada muda; com Calico ou Cilium, o tráfego para.
+    - Troque a solução para a forma E (um item só) e repita os quatro testes: veja quais mudam de resultado.
+    - Aplique uma default-deny de **egress** no namespace `shop` e veja o `wget http://api-svc` falhar por DNS. Depois libere a porta 53 e veja voltar.
+    - Libere a porta do Service (ex.: `80`) em vez da do container (`8080`) e confirme que o tráfego continua bloqueado.
+    - Use `ipBlock` para liberar egress só para um IP fora do cluster (ex.: o IP privado de outra VM do lab) e teste com `nc -zv`.

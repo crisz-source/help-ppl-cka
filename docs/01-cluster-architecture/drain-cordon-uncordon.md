@@ -137,8 +137,8 @@ kubectl get pods -A -o wide --field-selector spec.nodeName=node01
 # só devem aparecer Pods de DaemonSet (kube-proxy, CNI...)
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Crie um Deployment com 4 réplicas, um Pod "solto" (`kubectl run solto --image=nginx`) e um Pod com `emptyDir`, todos em `node01`. Rode o drain sem flags e leia cada erro.
-- Crie um PDB com `minAvailable` igual ao número de réplicas e veja o drain travar. Teste `--timeout`.
-- Depois do `uncordon`, rode `kubectl rollout restart deployment/<nome>` e observe os Pods voltando a se espalhar entre os nós.
+    - Crie um Deployment com 4 réplicas, um Pod "solto" (`kubectl run solto --image=nginx`) e um Pod com `emptyDir`, todos em `node01`. Rode o drain sem flags e leia cada erro.
+    - Crie um PDB com `minAvailable` igual ao número de réplicas e veja o drain travar. Teste `--timeout`.
+    - Depois do `uncordon`, rode `kubectl rollout restart deployment/<nome>` e observe os Pods voltando a se espalhar entre os nós.

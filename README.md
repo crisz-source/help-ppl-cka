@@ -33,6 +33,7 @@ Abra <http://localhost:4321/help-ppl-cka/v2/>.
 ## Estrutura
 
 - `docs/<numero-dominio>-<nome-dominio>/<topico>.md`: uma página por tópico, organizadas pelos domínios do currículo. **É a única fonte do conteúdo**: os dois layouts são gerados a partir daqui.
+- `docs/trilhas/`: as trilhas da home (Começar do zero, Revisão rápida, Treinar troubleshooting), os Fundamentos e a folha de Comandos de memória. Os cards da home ficam no bloco `<div class="grid cards" markdown>` de `docs/index.md`; o layout interativo lê esse bloco e mostra os cards no topo.
 - `mkdocs.yml`: configuração do layout clássico. O `nav` também define o menu do layout interativo.
 - `v2/`: layout interativo. `v2/scripts/sync-docs.mjs` copia `docs/` antes de cada build e converte a sintaxe do MkDocs Material (avisos `!!!`, soluções `???`, Mermaid, links, imagens de `docs/assets/`). Não edite `v2/src/content/docs/`: ele é gerado.
 - `docs/assets/diagramas/`: os diagramas das páginas (SVG). Não edite à mão: são exportados de `drawio/`.

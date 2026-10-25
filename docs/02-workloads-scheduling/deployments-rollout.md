@@ -75,41 +75,43 @@ kubectl edit deployment web
 
 ## YAML de referência
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: web
-  annotations:
-    kubernetes.io/change-cause: "nginx 1.27 inicial"   # aparece no rollout history
-spec:
-  replicas: 4
-  revisionHistoryLimit: 5          # quantos ReplicaSets antigos guardar (padrão 10)
-  minReadySeconds: 5               # Pod precisa ficar Ready 5 s para contar como disponível
-  progressDeadlineSeconds: 600     # depois disso o rollout é marcado como falho (padrão 600)
-  selector:
-    matchLabels:
-      app: web                     # imutável depois de criado; tem que casar com o template
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1                  # no máximo 5 Pods durante a troca
-      maxUnavailable: 0            # nunca menos de 4 disponíveis
-  template:
+??? example "YAML completo: Deployment"
+
+    ```yaml
+    apiVersion: apps/v1
+    kind: Deployment
     metadata:
-      labels:
-        app: web
+      name: web
+      annotations:
+        kubernetes.io/change-cause: "nginx 1.27 inicial"   # aparece no rollout history
     spec:
-      containers:
-        - name: nginx
-          image: nginx:1.27
-          ports:
-            - containerPort: 80
-          readinessProbe:          # sem readiness, "disponível" = container iniciado
-            httpGet:
-              path: /
-              port: 80
-```
+      replicas: 4
+      revisionHistoryLimit: 5          # quantos ReplicaSets antigos guardar (padrão 10)
+      minReadySeconds: 5               # Pod precisa ficar Ready 5 s para contar como disponível
+      progressDeadlineSeconds: 600     # depois disso o rollout é marcado como falho (padrão 600)
+      selector:
+        matchLabels:
+          app: web                     # imutável depois de criado; tem que casar com o template
+      strategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 1                  # no máximo 5 Pods durante a troca
+          maxUnavailable: 0            # nunca menos de 4 disponíveis
+      template:
+        metadata:
+          labels:
+            app: web
+        spec:
+          containers:
+            - name: nginx
+              image: nginx:1.27
+              ports:
+                - containerPort: 80
+              readinessProbe:          # sem readiness, "disponível" = container iniciado
+                httpGet:
+                  path: /
+                  port: 80
+    ```
 
 Recreate (sem bloco `rollingUpdate`):
 
@@ -205,9 +207,9 @@ webapp   5/5     5            5           2m
 
 A revisão 1 sumiu porque virou a 3 no rollback. A anotação `change-cause` fica no Deployment e é copiada para o ReplicaSet da vez, por isso a revisão 3 mostra `<none>` ou o valor anterior, conforme a ordem dos comandos.
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Faça `kubectl set image deployment/webapp nginx=nginx:naoexiste` e observe: Pods novos em `ImagePullBackOff`, antigos atendendo, `rollout status` parado. Corrija com `rollout undo`.
-- Rode `kubectl get rs -w` em outro terminal durante um rollout e veja os números dos dois ReplicaSets mudando conforme `maxSurge`/`maxUnavailable`.
-- Troque a estratégia para `Recreate` e compare: todos os Pods somem antes de os novos subirem.
-- Use `rollout pause`, faça três mudanças e `rollout resume`: confira no `history` que entrou uma revisão só.
+    - Faça `kubectl set image deployment/webapp nginx=nginx:naoexiste` e observe: Pods novos em `ImagePullBackOff`, antigos atendendo, `rollout status` parado. Corrija com `rollout undo`.
+    - Rode `kubectl get rs -w` em outro terminal durante um rollout e veja os números dos dois ReplicaSets mudando conforme `maxSurge`/`maxUnavailable`.
+    - Troque a estratégia para `Recreate` e compare: todos os Pods somem antes de os novos subirem.
+    - Use `rollout pause`, faça três mudanças e `rollout resume`: confira no `history` que entrou uma revisão só.

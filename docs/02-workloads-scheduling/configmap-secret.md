@@ -68,70 +68,72 @@ kubectl exec deploy/web -- ls /etc/config
 
 ## YAML de referência
 
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: app-cfg
-data:
-  LOG_LEVEL: debug
-  app.properties: |                  # chave com conteúdo de arquivo (multilinha)
-    cor=azul
-    limite=10
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: db
-type: Opaque
-stringData:                          # texto puro; a API converte para base64 em data
-  usuario: app
-  senha: "S3nh@!"
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: app
-spec:
-  containers:
-    - name: app
-      image: busybox:1.36
-      command: ["sh", "-c", "env; ls /etc/config /etc/db; sleep 3600"]
-      env:
-        - name: NIVEL_LOG                # nome da variável pode ser diferente da chave
-          valueFrom:
-            configMapKeyRef:
-              name: app-cfg
-              key: LOG_LEVEL
-        - name: DB_SENHA
-          valueFrom:
-            secretKeyRef:
-              name: db
-              key: senha
-              optional: false            # padrão: Pod não sobe se a chave não existir
-      envFrom:
-        - configMapRef:
-            name: app-cfg                # todas as chaves válidas como variável
-          prefix: CFG_
-      volumeMounts:
+??? example "YAML completo: ConfigMap + Secret + Pod"
+
+    ```yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: app-cfg
+    data:
+      LOG_LEVEL: debug
+      app.properties: |                  # chave com conteúdo de arquivo (multilinha)
+        cor=azul
+        limite=10
+    ---
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: db
+    type: Opaque
+    stringData:                          # texto puro; a API converte para base64 em data
+      usuario: app
+      senha: "S3nh@!"
+    ---
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: app
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh", "-c", "env; ls /etc/config /etc/db; sleep 3600"]
+          env:
+            - name: NIVEL_LOG                # nome da variável pode ser diferente da chave
+              valueFrom:
+                configMapKeyRef:
+                  name: app-cfg
+                  key: LOG_LEVEL
+            - name: DB_SENHA
+              valueFrom:
+                secretKeyRef:
+                  name: db
+                  key: senha
+                  optional: false            # padrão: Pod não sobe se a chave não existir
+          envFrom:
+            - configMapRef:
+                name: app-cfg                # todas as chaves válidas como variável
+              prefix: CFG_
+          volumeMounts:
+            - name: config
+              mountPath: /etc/config         # arquivos LOG_LEVEL e app.properties
+              readOnly: true
+            - name: db
+              mountPath: /etc/db
+              readOnly: true
+      volumes:
         - name: config
-          mountPath: /etc/config         # arquivos LOG_LEVEL e app.properties
-          readOnly: true
+          configMap:
+            name: app-cfg
         - name: db
-          mountPath: /etc/db
-          readOnly: true
-  volumes:
-    - name: config
-      configMap:
-        name: app-cfg
-    - name: db
-      secret:
-        secretName: db                   # atenção: secretName, não name
-        defaultMode: 0400
-        items:                           # só algumas chaves, com outro nome de arquivo
-          - key: senha
-            path: senha.txt
-```
+          secret:
+            secretName: db                   # atenção: secretName, não name
+            defaultMode: 0400
+            items:                           # só algumas chaves, com outro nome de arquivo
+              - key: senha
+                path: senha.txt
+    ```
 
 Arquivo único sem esconder o diretório da imagem (não atualiza sozinho):
 
@@ -247,9 +249,9 @@ touch: cannot touch '/etc/secret/x': Read-only file system
 command terminated with exit code 1
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Edite o ConfigMap (`kubectl edit cm web-cfg -n config-lab`) e confira que `APP_COLOR` não muda. Monte o ConfigMap como volume, edite de novo e veja o arquivo mudar em até um minuto.
-- Crie um Pod que referencia um ConfigMap inexistente e leia o status (`CreateContainerConfigError`) e os eventos.
-- Codifique um valor com `echo` sem `-n`, ponha no `data` de um Secret e veja o `\n` aparecer no valor lido no Pod.
-- No control plane, leia o Secret direto do etcd com `etcdctl get /registry/secrets/config-lab/web-secret` (com as mesmas flags de certificado de [Backup e restore do etcd](../01-cluster-architecture/etcd-backup-restore.md)) e confirme que o valor aparece legível: sem `EncryptionConfiguration`, o etcd guarda o Secret sem criptografia.
+    - Edite o ConfigMap (`kubectl edit cm web-cfg -n config-lab`) e confira que `APP_COLOR` não muda. Monte o ConfigMap como volume, edite de novo e veja o arquivo mudar em até um minuto.
+    - Crie um Pod que referencia um ConfigMap inexistente e leia o status (`CreateContainerConfigError`) e os eventos.
+    - Codifique um valor com `echo` sem `-n`, ponha no `data` de um Secret e veja o `\n` aparecer no valor lido no Pod.
+    - No control plane, leia o Secret direto do etcd com `etcdctl get /registry/secrets/config-lab/web-secret` (com as mesmas flags de certificado de [Backup e restore do etcd](../01-cluster-architecture/etcd-backup-restore.md)) e confirme que o valor aparece legível: sem `EncryptionConfiguration`, o etcd guarda o Secret sem criptografia.

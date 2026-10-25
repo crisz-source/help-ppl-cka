@@ -58,73 +58,77 @@ kubectl explain hpa.spec.behavior
 
 ## YAML de referência
 
-```yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: web
-spec:
-  scaleTargetRef:                    # quem escalar
-    apiVersion: apps/v1
-    kind: Deployment
-    name: web
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization          # porcentagem do request
-          averageUtilization: 50
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: AverageValue         # valor absoluto por Pod, não depende do request
-          averageValue: 200Mi
-  behavior:                          # opcional: velocidade de subir e descer
-    scaleDown:
-      stabilizationWindowSeconds: 120   # padrão 300
-      policies:
-        - type: Pods
-          value: 1                   # no máximo 1 Pod a menos
-          periodSeconds: 60          # por minuto
-    scaleUp:
-      stabilizationWindowSeconds: 0
-      policies:
-        - type: Percent
-          value: 100                 # pode dobrar
-          periodSeconds: 15
-```
+??? example "YAML completo: HorizontalPodAutoscaler"
+
+    ```yaml
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    metadata:
+      name: web
+    spec:
+      scaleTargetRef:                    # quem escalar
+        apiVersion: apps/v1
+        kind: Deployment
+        name: web
+      minReplicas: 2
+      maxReplicas: 10
+      metrics:
+        - type: Resource
+          resource:
+            name: cpu
+            target:
+              type: Utilization          # porcentagem do request
+              averageUtilization: 50
+        - type: Resource
+          resource:
+            name: memory
+            target:
+              type: AverageValue         # valor absoluto por Pod, não depende do request
+              averageValue: 200Mi
+      behavior:                          # opcional: velocidade de subir e descer
+        scaleDown:
+          stabilizationWindowSeconds: 120   # padrão 300
+          policies:
+            - type: Pods
+              value: 1                   # no máximo 1 Pod a menos
+              periodSeconds: 60          # por minuto
+        scaleUp:
+          stabilizationWindowSeconds: 0
+          policies:
+            - type: Percent
+              value: 100                 # pode dobrar
+              periodSeconds: 15
+    ```
 
 O alvo precisa de `requests` para a meta de `Utilization`:
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: web
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: web
-  template:
+??? example "YAML completo: Deployment"
+
+    ```yaml
+    apiVersion: apps/v1
+    kind: Deployment
     metadata:
-      labels:
-        app: web
+      name: web
     spec:
-      containers:
-        - name: nginx
-          image: nginx:1.27
-          resources:
-            requests:
-              cpu: 100m              # 50% de meta = 50m por Pod
-              memory: 64Mi
-            limits:
-              cpu: 200m
-```
+      replicas: 2
+      selector:
+        matchLabels:
+          app: web
+      template:
+        metadata:
+          labels:
+            app: web
+        spec:
+          containers:
+            - name: nginx
+              image: nginx:1.27
+              resources:
+                requests:
+                  cpu: 100m              # 50% de meta = 50m por Pod
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+    ```
 
 ## Na documentação oficial
 
@@ -212,9 +216,9 @@ $ kubectl get hpa php-hpa -n autoscale -o jsonpath='{.spec.behavior.scaleDown.st
 60
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- No lab kubeadm o metrics-server não vem instalado. Crie o HPA antes de instalar e leia o `<unknown>` e as Conditions; depois instale e veja a métrica aparecer. Em kubeadm costuma ser preciso o argumento `--kubelet-insecure-tls` no metrics-server, porque os certificados do kubelet são autoassinados.
-- Tire o `requests.cpu` do Deployment e leia o erro `missing request for cpu` no `describe hpa`.
-- Gere carga com o laço de `wget` e acompanhe `kubectl get hpa -w`. Pare a carga e cronometre a descida (5 min no padrão, 1 min com o `behavior` da solução).
-- Faça `kubectl scale deployment php --replicas=1` com o HPA ativo e veja o número voltar para 2.
+    - No lab kubeadm o metrics-server não vem instalado. Crie o HPA antes de instalar e leia o `<unknown>` e as Conditions; depois instale e veja a métrica aparecer. Em kubeadm costuma ser preciso o argumento `--kubelet-insecure-tls` no metrics-server, porque os certificados do kubelet são autoassinados.
+    - Tire o `requests.cpu` do Deployment e leia o erro `missing request for cpu` no `describe hpa`.
+    - Gere carga com o laço de `wget` e acompanhe `kubectl get hpa -w`. Pare a carga e cronometre a descida (5 min no padrão, 1 min com o `behavior` da solução).
+    - Faça `kubectl scale deployment php --replicas=1` com o HPA ativo e veja o número voltar para 2.

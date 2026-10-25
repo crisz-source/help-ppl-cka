@@ -86,127 +86,133 @@ spec:
 
 `Gateway` com HTTP e HTTPS:
 
-```yaml
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: web-gw
-  namespace: infra
-spec:
-  gatewayClassName: envoy
-  listeners:
-    - name: http
-      protocol: HTTP
-      port: 80
-      allowedRoutes:
-        namespaces:
-          from: All                 # Same (padrão) | All | Selector
-    - name: https
-      protocol: HTTPS
-      port: 443
-      hostname: "*.exemplo.com"     # opcional: restringe os hosts aceitos
-      tls:
-        mode: Terminate             # o Gateway descriptografa
-        certificateRefs:
-          - kind: Secret
-            name: exemplo-tls       # Secret tls no namespace do Gateway
-      allowedRoutes:
-        namespaces:
-          from: Selector
-          selector:
-            matchLabels:
-              gateway-access: "true"
-```
+??? example "YAML completo: Gateway"
+
+    ```yaml
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    metadata:
+      name: web-gw
+      namespace: infra
+    spec:
+      gatewayClassName: envoy
+      listeners:
+        - name: http
+          protocol: HTTP
+          port: 80
+          allowedRoutes:
+            namespaces:
+              from: All                 # Same (padrão) | All | Selector
+        - name: https
+          protocol: HTTPS
+          port: 443
+          hostname: "*.exemplo.com"     # opcional: restringe os hosts aceitos
+          tls:
+            mode: Terminate             # o Gateway descriptografa
+            certificateRefs:
+              - kind: Secret
+                name: exemplo-tls       # Secret tls no namespace do Gateway
+          allowedRoutes:
+            namespaces:
+              from: Selector
+              selector:
+                matchLabels:
+                  gateway-access: "true"
+    ```
 
 `HTTPRoute` com path, cabeçalho e divisão por peso:
 
-```yaml
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: app
-  namespace: shop
-spec:
-  parentRefs:
-    - name: web-gw
-      namespace: infra              # obrigatório se o Gateway estiver em outro namespace
-      sectionName: http             # opcional: liga só a este listener
-  hostnames:
-    - app.exemplo.com
-  rules:
-    - matches:                      # regra 1: /api COM cabeçalho env=canary → só v2
-        - path:
-            type: PathPrefix
-            value: /api
-          headers:                  # path e headers no mesmo match = E
-            - name: env
-              value: canary
-      backendRefs:
-        - name: app-v2
-          port: 8080
-    - matches:                      # regra 2: /api → 90% v1, 10% v2
-        - path:
-            type: PathPrefix        # PathPrefix (padrão) | Exact | RegularExpression
-            value: /api
-      backendRefs:
-        - name: app-v1
-          port: 8080                # porta do SERVICE
-          weight: 90
-        - name: app-v2
-          port: 8080
-          weight: 10
-```
+??? example "YAML completo: HTTPRoute"
+
+    ```yaml
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: app
+      namespace: shop
+    spec:
+      parentRefs:
+        - name: web-gw
+          namespace: infra              # obrigatório se o Gateway estiver em outro namespace
+          sectionName: http             # opcional: liga só a este listener
+      hostnames:
+        - app.exemplo.com
+      rules:
+        - matches:                      # regra 1: /api COM cabeçalho env=canary → só v2
+            - path:
+                type: PathPrefix
+                value: /api
+              headers:                  # path e headers no mesmo match = E
+                - name: env
+                  value: canary
+          backendRefs:
+            - name: app-v2
+              port: 8080
+        - matches:                      # regra 2: /api → 90% v1, 10% v2
+            - path:
+                type: PathPrefix        # PathPrefix (padrão) | Exact | RegularExpression
+                value: /api
+          backendRefs:
+            - name: app-v1
+              port: 8080                # porta do SERVICE
+              weight: 90
+            - name: app-v2
+              port: 8080
+              weight: 10
+    ```
 
 Filtros comuns (vão em `rules[].filters`):
 
-```yaml
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: redirect-https
-  namespace: infra
-spec:
-  parentRefs:
-    - name: web-gw
-      sectionName: http
-  hostnames:
-    - app.exemplo.com
-  rules:
-    - filters:
-        - type: RequestRedirect     # HTTP → HTTPS
-          requestRedirect:
-            scheme: https
-            statusCode: 301
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: rewrite
-  namespace: shop
-spec:
-  parentRefs:
-    - name: web-gw
+??? example "YAML completo: HTTPRoute"
+
+    ```yaml
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: redirect-https
       namespace: infra
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /loja
-      filters:
-        - type: URLRewrite          # /loja/x chega ao Pod como /x
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: /
-        - type: RequestHeaderModifier
-          requestHeaderModifier:
-            add:
-              - name: x-origem
-                value: gateway
-      backendRefs:
-        - name: web-svc
-          port: 80
-```
+    spec:
+      parentRefs:
+        - name: web-gw
+          sectionName: http
+      hostnames:
+        - app.exemplo.com
+      rules:
+        - filters:
+            - type: RequestRedirect     # HTTP → HTTPS
+              requestRedirect:
+                scheme: https
+                statusCode: 301
+    ---
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: rewrite
+      namespace: shop
+    spec:
+      parentRefs:
+        - name: web-gw
+          namespace: infra
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /loja
+          filters:
+            - type: URLRewrite          # /loja/x chega ao Pod como /x
+              urlRewrite:
+                path:
+                  type: ReplacePrefixMatch
+                  replacePrefixMatch: /
+            - type: RequestHeaderModifier
+              requestHeaderModifier:
+                add:
+                  - name: x-origem
+                    value: gateway
+          backendRefs:
+            - name: web-svc
+              port: 80
+    ```
 
 `ReferenceGrant`: rota em `shop` usando um Service em `backend`. Fica no namespace **do Service**:
 
@@ -304,10 +310,10 @@ for i in $(seq 1 20); do curl -s -H "Host: shop.example.com" http://$GW/; done |
 curl -s -H "Host: shop.example.com" -H "x-version: v2" http://$GW/                               # sempre v2
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- No lab kubeadm, instale os CRDs (`standard-install.yaml`) e um controller (ex.: Envoy Gateway ou NGINX Gateway Fabric) seguindo o quickstart dele. Sem cloud controller, o Service do proxy fica `<pending>`: use o NodePort dele.
-- Mude o `allowedRoutes` do listener para `Same` e veja o status da rota passar a `Accepted=False`.
-- Aponte um `backendRef` para um Service em outro namespace, veja `RefNotPermitted` e corrija com `ReferenceGrant`.
-- Pegue um Ingress da [página de Ingress](ingress.md) e reescreva como Gateway + HTTPRoute.
-- Monte o redirect HTTP → HTTPS com dois listeners e um filtro `RequestRedirect`.
+    - No lab kubeadm, instale os CRDs (`standard-install.yaml`) e um controller (ex.: Envoy Gateway ou NGINX Gateway Fabric) seguindo o quickstart dele. Sem cloud controller, o Service do proxy fica `<pending>`: use o NodePort dele.
+    - Mude o `allowedRoutes` do listener para `Same` e veja o status da rota passar a `Accepted=False`.
+    - Aponte um `backendRef` para um Service em outro namespace, veja `RefNotPermitted` e corrija com `ReferenceGrant`.
+    - Pegue um Ingress da [página de Ingress](ingress.md) e reescreva como Gateway + HTTPRoute.
+    - Monte o redirect HTTP → HTTPS com dois listeners e um filtro `RequestRedirect`.

@@ -49,28 +49,30 @@ kubectl patch sc rapido -p '{"allowVolumeExpansion":true}'
 
 ## YAML de referência
 
-```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: expansivel
-provisioner: disk.csi.azure.com
-allowVolumeExpansion: true             # sem isso a edição do PVC é recusada
-reclaimPolicy: Delete
-volumeBindingMode: WaitForFirstConsumer
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: dados
-  namespace: app
-spec:
-  storageClassName: expansivel
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: 10Gi                    # era 5Gi: só aumentar este número
-```
+??? example "YAML completo: StorageClass + PersistentVolumeClaim"
+
+    ```yaml
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+      name: expansivel
+    provisioner: disk.csi.azure.com
+    allowVolumeExpansion: true             # sem isso a edição do PVC é recusada
+    reclaimPolicy: Delete
+    volumeBindingMode: WaitForFirstConsumer
+    ---
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: dados
+      namespace: app
+    spec:
+      storageClassName: expansivel
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi                    # era 5Gi: só aumentar este número
+    ```
 
 ## Na documentação oficial
 
@@ -128,8 +130,8 @@ Events:
   Normal  FileSystemResizeSuccessful  8s    kubelet                             MountVolume.NodeExpandVolume succeeded for volume "pvc-8a2f6d1e-..."
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Num lab sem driver com expansão (como o kubeadm puro), tente expandir um PVC de PV estático e leia a recusa. É a mensagem que aparece na prova quando falta `allowVolumeExpansion`.
-- Tente diminuir um PVC e leia o erro.
-- No Killercoda ou num cluster gerenciado (AKS, EKS, GKE), expanda um PVC com um Pod usando o volume e acompanhe `df -h` dentro do Pod.
+    - Num lab sem driver com expansão (como o kubeadm puro), tente expandir um PVC de PV estático e leia a recusa. É a mensagem que aparece na prova quando falta `allowVolumeExpansion`.
+    - Tente diminuir um PVC e leia o erro.
+    - No Killercoda ou num cluster gerenciado (AKS, EKS, GKE), expanda um PVC com um Pod usando o volume e acompanhe `df -h` dentro do Pod.

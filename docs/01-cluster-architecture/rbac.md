@@ -85,37 +85,39 @@ Use `--dry-run=client -o yaml` quando o enunciado pedir algo que os flags impera
 
 ## YAML de referência
 
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: deploy-mgr
-  namespace: dev              # Role sempre tem namespace
-rules:
-  - apiGroups: ["apps"]       # "" = core (pods, services, configmaps...); "apps" = deployments, statefulsets...
-    resources: ["deployments"]
-    verbs: ["get", "list", "create", "update"]
-  - apiGroups: [""]
-    resources: ["pods", "pods/log"]   # subrecurso usa "recurso/subrecurso"
-    verbs: ["get", "list"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: deploy-mgr-binding
-  namespace: dev              # a permissão vale neste namespace
-subjects:
-  - kind: ServiceAccount
-    name: app-sa
-    namespace: dev            # obrigatório para ServiceAccount
-  - kind: User
-    name: jane                # User e Group usam apiGroup rbac.authorization.k8s.io
-    apiGroup: rbac.authorization.k8s.io
-roleRef:                      # imutável depois de criado
-  kind: Role                  # ou ClusterRole
-  name: deploy-mgr
-  apiGroup: rbac.authorization.k8s.io
-```
+??? example "YAML completo: Role + RoleBinding"
+
+    ```yaml
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      name: deploy-mgr
+      namespace: dev              # Role sempre tem namespace
+    rules:
+      - apiGroups: ["apps"]       # "" = core (pods, services, configmaps...); "apps" = deployments, statefulsets...
+        resources: ["deployments"]
+        verbs: ["get", "list", "create", "update"]
+      - apiGroups: [""]
+        resources: ["pods", "pods/log"]   # subrecurso usa "recurso/subrecurso"
+        verbs: ["get", "list"]
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: deploy-mgr-binding
+      namespace: dev              # a permissão vale neste namespace
+    subjects:
+      - kind: ServiceAccount
+        name: app-sa
+        namespace: dev            # obrigatório para ServiceAccount
+      - kind: User
+        name: jane                # User e Group usam apiGroup rbac.authorization.k8s.io
+        apiGroup: rbac.authorization.k8s.io
+    roleRef:                      # imutável depois de criado
+      kind: Role                  # ou ClusterRole
+      name: deploy-mgr
+      apiGroup: rbac.authorization.k8s.io
+    ```
 
 ## Na documentação oficial
 
@@ -166,8 +168,8 @@ kubectl auth can-i list deployments -n default --as=system:serviceaccount:ops:de
 kubectl describe role deploy-bot-role -n ops   # confira apiGroup "apps"
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Gere um certificado de usuário com a API `CertificateSigningRequest` (`kubectl certificate approve`), monte um kubeconfig para ele e teste o RBAC de verdade, sem `--as`.
-- Crie um Pod com `serviceAccountName: deploy-bot` e, de dentro dele, chame a API com o token montado em `/var/run/secrets/kubernetes.io/serviceaccount/token`.
-- Faça um RoleBinding para a ClusterRole `view` e compare `kubectl auth can-i --list` antes e depois.
+    - Gere um certificado de usuário com a API `CertificateSigningRequest` (`kubectl certificate approve`), monte um kubeconfig para ele e teste o RBAC de verdade, sem `--as`.
+    - Crie um Pod com `serviceAccountName: deploy-bot` e, de dentro dele, chame a API com o token montado em `/var/run/secrets/kubernetes.io/serviceaccount/token`.
+    - Faça um RoleBinding para a ClusterRole `view` e compare `kubectl auth can-i --list` antes e depois.

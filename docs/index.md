@@ -1,10 +1,38 @@
 # Estudo CKA em público
 
-Este site documenta minha preparação para a **CKA (Certified Kubernetes Administrator)** e organiza o conteúdo para ajudar quem está no mesmo caminho. É gratuito e open source.
+**CKA em português: comandos, YAML, troubleshooting e prática.**
+
+Você já conhece Linux e containers? [Comece pelo Domínio 1](01-cluster-architecture/index.md) e avance pelos 29 tópicos em ordem.
+
+Currículo conferido em **outubro de 2026** · Kubernetes nos laboratórios: **v1.36**
+
+## Escolha uma trilha
+
+<div class="grid cards" markdown>
+
+-   **[Começar do zero](trilhas/iniciante.md)**
+
+    Fundamentos de Kubernetes e preparação gradual para a CKA.
+
+    *12 passos, cada um com uma tarefa prática*
+
+-   **[Revisão rápida](trilhas/revisao-rapida.md)**
+
+    Comandos, sintaxe e pegadinhas para revisar antes da prova.
+
+    *Um cartão por tópico, pelo peso na prova*
+
+-   **[Treinar troubleshooting](trilhas/troubleshooting/index.md)**
+
+    Diagnóstico de Pods, nós, rede, storage e control plane.
+
+    *23 cenários reproduzidos, por sintoma*
+
+</div>
 
 ## Para quem é
 
-Profissionais que já conhecem o básico de Linux e containers e querem passar no CKA.
+Profissionais que já conhecem o básico de Linux e containers e querem passar na CKA. Este site documenta minha preparação e organiza o conteúdo para ajudar quem está no mesmo caminho. É gratuito e open source.
 
 ## Como o conteúdo está organizado
 

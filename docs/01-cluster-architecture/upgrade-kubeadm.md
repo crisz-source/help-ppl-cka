@@ -227,9 +227,9 @@ kubectl get pods -n kube-system            # control plane, CoreDNS e kube-proxy
 kubectl version                            # Server Version: v1.37.Y
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- No lab Azure, tire um **snapshot das VMs** antes de começar. Assim você treina o upgrade várias vezes.
-- Faça **backup do etcd** antes do `upgrade apply`, como numa operação real ([ver página](etcd-backup-restore.md)).
-- Tente pular um minor de propósito (de `1.36` direto para `1.38`) e leia o erro do `kubeadm upgrade plan`.
-- O Killercoda tem cenários de upgrade com kubeadm prontos. Bom para treinar contra o relógio.
+    - No lab Azure, tire um **snapshot das VMs** antes de começar. Assim você treina o upgrade várias vezes.
+    - Faça **backup do etcd** antes do `upgrade apply`, como numa operação real ([ver página](etcd-backup-restore.md)).
+    - Tente pular um minor de propósito (de `1.36` direto para `1.38`) e leia o erro do `kubeadm upgrade plan`.
+    - O Killercoda tem cenários de upgrade com kubeadm prontos. Bom para treinar contra o relógio.

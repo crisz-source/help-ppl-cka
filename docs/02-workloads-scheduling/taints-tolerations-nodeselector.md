@@ -205,10 +205,10 @@ $ kubectl describe node w1 | grep Taints
 Taints:             team=analytics:NoSchedule
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Aplique um taint `NoSchedule` num worker com Pods rodando e veja que eles continuam. Troque por `NoExecute` e veja os Pods saírem.
-- Crie uma toleration `NoExecute` com `tolerationSeconds: 30` e cronometre a expulsão.
-- Tire o `nodeSelector` da solução e crie várias réplicas: veja que algumas vão para outros nós (toleration não atrai).
-- Crie um Pod com `nodeName: cp` e confira que ele roda no control plane mesmo sem toleration.
-- Ao terminar, remova o taint e o label: `kubectl taint nodes w1 team-` e `kubectl label nodes w1 team-`.
+    - Aplique um taint `NoSchedule` num worker com Pods rodando e veja que eles continuam. Troque por `NoExecute` e veja os Pods saírem.
+    - Crie uma toleration `NoExecute` com `tolerationSeconds: 30` e cronometre a expulsão.
+    - Tire o `nodeSelector` da solução e crie várias réplicas: veja que algumas vão para outros nós (toleration não atrai).
+    - Crie um Pod com `nodeName: cp` e confira que ele roda no control plane mesmo sem toleration.
+    - Ao terminar, remova o taint e o label: `kubectl taint nodes w1 team-` e `kubectl label nodes w1 team-`.

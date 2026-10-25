@@ -52,29 +52,31 @@ kubectl get sc -o custom-columns=NOME:.metadata.name,RECLAIM:.reclaimPolicy
 
 ## YAML de referência
 
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: pv-banco
-spec:
-  capacity:
-    storage: 5Gi
-  accessModes: ["ReadWriteOnce"]
-  persistentVolumeReclaimPolicy: Retain   # Retain | Delete (Recycle descontinuado)
-  storageClassName: manual
-  hostPath:
-    path: /mnt/banco
----
-# Na StorageClass o campo se chama só reclaimPolicy e vale para os PVs que ela criar
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: guarda-dados
-provisioner: kubernetes.io/no-provisioner
-reclaimPolicy: Retain
-volumeBindingMode: WaitForFirstConsumer
-```
+??? example "YAML completo: PersistentVolume + StorageClass"
+
+    ```yaml
+    apiVersion: v1
+    kind: PersistentVolume
+    metadata:
+      name: pv-banco
+    spec:
+      capacity:
+        storage: 5Gi
+      accessModes: ["ReadWriteOnce"]
+      persistentVolumeReclaimPolicy: Retain   # Retain | Delete (Recycle descontinuado)
+      storageClassName: manual
+      hostPath:
+        path: /mnt/banco
+    ---
+    # Na StorageClass o campo se chama só reclaimPolicy e vale para os PVs que ela criar
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+      name: guarda-dados
+    provisioner: kubernetes.io/no-provisioner
+    reclaimPolicy: Retain
+    volumeBindingMode: WaitForFirstConsumer
+    ```
 
 ## Na documentação oficial
 
@@ -145,8 +147,8 @@ NAME                                       CAPACITY   ACCESS MODES   RECLAIM POL
 pvc-3f1c2a9e-7d1b-4c55-9a7e-2b1f0c9d8e11   1Gi        RWO            Retain           Bound    shop/orders-archive   rapido         6m
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Com um PV `hostPath` em `Retain`, grave um arquivo pelo Pod, apague Pod e PVC, e confira no nó (`ls /mnt/...`) que o arquivo continua.
-- Crie um PVC novo com o mesmo nome do antigo e veja que ele **não** liga no PV `Released`. Remova o `claimRef` e veja ligar.
-- Mude um PV `hostPath` para `Delete`, apague o PVC e confira: `kubectl get pv` não mostra mais o PV, mas `ls` no diretório do nó mostra os arquivos lá.
+    - Com um PV `hostPath` em `Retain`, grave um arquivo pelo Pod, apague Pod e PVC, e confira no nó (`ls /mnt/...`) que o arquivo continua.
+    - Crie um PVC novo com o mesmo nome do antigo e veja que ele **não** liga no PV `Released`. Remova o `claimRef` e veja ligar.
+    - Mude um PV `hostPath` para `Delete`, apague o PVC e confira: `kubectl get pv` não mostra mais o PV, mas `ls` no diretório do nó mostra os arquivos lá.

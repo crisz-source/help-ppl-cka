@@ -92,40 +92,42 @@ spec:
 
 PVC que liga nele e Pod que usa o PVC:
 
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: dados
-  namespace: app
-spec:
-  storageClassName: manual
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 500Mi                  # cabe no PV de 1Gi
-  selector:                           # opcional: só PVs com este label
-    matchLabels:
-      tipo: local
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: web
-  namespace: app
-spec:
-  containers:
-    - name: web
-      image: nginx:1.27
-      volumeMounts:
+??? example "YAML completo: PersistentVolumeClaim + Pod"
+
+    ```yaml
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: dados
+      namespace: app
+    spec:
+      storageClassName: manual
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 500Mi                  # cabe no PV de 1Gi
+      selector:                           # opcional: só PVs com este label
+        matchLabels:
+          tipo: local
+    ---
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: web
+      namespace: app
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27
+          volumeMounts:
+            - name: dados
+              mountPath: /usr/share/nginx/html
+      volumes:
         - name: dados
-          mountPath: /usr/share/nginx/html
-  volumes:
-    - name: dados
-      persistentVolumeClaim:
-        claimName: dados              # o nome do PVC, não do PV
-```
+          persistentVolumeClaim:
+            claimName: dados              # o nome do PVC, não do PV
+    ```
 
 Ligar um PVC a um PV específico pelo nome (pula a busca):
 
@@ -247,9 +249,9 @@ pvc-logs   Bound    pv-logs   2Gi        RWO            manual         30s
 
 O PV criado à mão tem `Retain` como padrão. O `Delete` é o padrão dos PVs criados por uma StorageClass.
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Peça `3Gi` no PVC e leia o evento do `Pending`. Depois crie um PV de 5Gi e veja o PVC ligar sozinho.
-- Peça `ReadWriteMany` com o PV `ReadWriteOnce` e confirme que não liga.
-- Tire o `storageClassName` do PVC (com o PV em `manual`) e veja o `Pending`.
-- Apague o Pod e recrie-o com `nodeName` para o outro worker: o `out.txt` some, porque o `hostPath` é local ao nó.
+    - Peça `3Gi` no PVC e leia o evento do `Pending`. Depois crie um PV de 5Gi e veja o PVC ligar sozinho.
+    - Peça `ReadWriteMany` com o PV `ReadWriteOnce` e confirme que não liga.
+    - Tire o `storageClassName` do PVC (com o PV em `manual`) e veja o `Pending`.
+    - Apague o Pod e recrie-o com `nodeName` para o outro worker: o `out.txt` some, porque o `hostPath` é local ao nó.

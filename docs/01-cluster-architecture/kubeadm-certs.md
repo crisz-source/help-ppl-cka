@@ -202,9 +202,9 @@ echo | openssl s_client -connect 127.0.0.1:6443 2>/dev/null | openssl x509 -noou
 kubectl get nodes   # API respondendo normalmente
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- No lab Azure, adicione o **IP público** da VM do control plane ao `apiserver.crt` para usar o `kubectl` de fora. Sem isso, o erro é `x509: certificate is valid for 10.x.x.x, not 20.x.x.x`. Procedimento: incluir o IP em `certSANs`, remover `apiserver.crt`/`apiserver.key` e rodar `kubeadm init phase certs apiserver --config <arquivo>`. <!-- VERIFICAR: conferir o procedimento atual na página "Certificate Management with kubeadm" -->
-- Rode `kubeadm certs renew all` **sem** reiniciar nada e compare `openssl s_client` (o que é servido) com o arquivo em disco. Assim você vê na prática por que o reinício é obrigatório.
-- Troque `--etcd-cafile` por `/etc/kubernetes/pki/ca.crt` no manifest do apiserver e investigue com `crictl logs`. É treino direto de Troubleshooting. Depois desfaça.
-- Antes de qualquer experimento, faça backup de `/etc/kubernetes/` (`cp -a /etc/kubernetes /root/k8s-backup`).
+    - No lab Azure, adicione o **IP público** da VM do control plane ao `apiserver.crt` para usar o `kubectl` de fora. Sem isso, o erro é `x509: certificate is valid for 10.x.x.x, not 20.x.x.x`. Procedimento: incluir o IP em `certSANs`, remover `apiserver.crt`/`apiserver.key` e rodar `kubeadm init phase certs apiserver --config <arquivo>`. <!-- VERIFICAR: conferir o procedimento atual na página "Certificate Management with kubeadm" -->
+    - Rode `kubeadm certs renew all` **sem** reiniciar nada e compare `openssl s_client` (o que é servido) com o arquivo em disco. Assim você vê na prática por que o reinício é obrigatório.
+    - Troque `--etcd-cafile` por `/etc/kubernetes/pki/ca.crt` no manifest do apiserver e investigue com `crictl logs`. É treino direto de Troubleshooting. Depois desfaça.
+    - Antes de qualquer experimento, faça backup de `/etc/kubernetes/` (`cp -a /etc/kubernetes /root/k8s-backup`).

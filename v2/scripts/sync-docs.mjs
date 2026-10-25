@@ -104,6 +104,45 @@ function converterAssets(texto, relMd, arquivo) {
   });
 }
 
+/** Markdown de uma linha (negrito, código, links já convertidos) → HTML, para o Hero. */
+function inlineHtml(md) {
+  return escaparHtml(md)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2">$1</a>');
+}
+
+const paragrafos = (texto) => texto.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+
+/** Topo da home: os parágrafos antes do primeiro "## " (subtítulo, chamada, data do currículo) e
+ *  a seção com o bloco "grid cards" (trilhas) saem do corpo e vão para o Hero, acima dos domínios. */
+function separarHome(corpo, totalTopicos) {
+  const ARQ = 'docs/index.md';
+  const inicio = corpo.search(/^## /m);
+  if (inicio < 0) falha(`${ARQ}: home sem seções "## "`);
+  const [subtitulo, ...intro] = paragrafos(corpo.slice(0, inicio));
+  const tagline = subtitulo?.match(/^\*\*(.+)\*\*$/)?.[1] ?? falha(`${ARQ}: o primeiro parágrafo deve ser o subtítulo em **negrito**`);
+  const citado = intro.join(' ').match(/(\d+) tópicos/);
+  if (citado && Number(citado[1]) !== totalTopicos) {
+    falha(`${ARQ}: a chamada fala em ${citado[1]} tópicos, mas os domínios têm ${totalTopicos} páginas no nav do mkdocs.yml`);
+  }
+
+  const bloco = corpo.match(/^## (.+)\n+<div class="grid cards" markdown>\n([\s\S]*?)^<\/div>\n*/m)
+    ?? falha(`${ARQ}: seção de trilhas (<div class="grid cards" markdown>) não encontrada`);
+  const trilhas = bloco[2].split(/^- {3}/m).slice(1).map((item) => {
+    const [titulo, descricao, meta] = paragrafos(item);
+    const t = titulo?.match(/^\*\*(?:\[(.+?)\]\((.+?)\)|(.+?))\*\*$/) ?? falha(`${ARQ}: card de trilha sem título em **negrito**: ${item.trim()}`);
+    if (!descricao || !meta) falha(`${ARQ}: card "${t[1] ?? t[3]}" precisa de título, descrição e uma linha final (ex.: *em breve*)`);
+    return { titulo: t[1] ?? t[3], href: t[2] ?? null, descricao: inlineHtml(descricao), meta: meta.replace(/^\*(.+)\*$/, '$1') };
+  });
+
+  return {
+    tagline: inlineHtml(tagline),
+    home: { intro: intro.map(inlineHtml), tituloTrilhas: bloco[1].trim(), trilhas },
+    corpo: corpo.slice(inicio).replace(bloco[0], ''),
+  };
+}
+
 function converterPagina(fonte, relMd, slugsExistentes) {
   const arquivo = `docs/${relMd.replace(/\\/g, '/')}`;
   const texto = fonte.replace(/\r\n/g, '\n');
@@ -127,7 +166,8 @@ function lerNav() {
     return { label, collapsed: false, items: valor.map(item) };
   };
   const sidebar = cfg.nav.map(item);
-  const dominios = sidebar.filter((g) => g.items).map((g) => {
+  // grupos que começam com número são domínios; os outros (ex.: trilhas) só entram no menu
+  const dominios = sidebar.filter((g) => g.items && /^\d/.test(g.label)).map((g) => {
     const m = g.label.match(/^(\d+)\.\s*(.+?)\s*\((\d+)%\)$/) ?? falha(`mkdocs.yml: rótulo de domínio fora do padrão "N. Nome (P%)": ${g.label}`);
     const paginas = g.items.filter((i) => i.slug && i.label !== 'Visão geral').map((i) => ({ label: i.label, slug: i.slug }));
     return { numero: Number(m[1]), nome: m[2], peso: Number(m[3]), indice: g.items.find((i) => i.label === 'Visão geral')?.slug, paginas };
@@ -155,20 +195,24 @@ function main() {
   fs.rmSync(ASSETS_PUBLIC, { recursive: true, force: true });
   if (fs.existsSync(ASSETS_DOCS)) fs.cpSync(ASSETS_DOCS, ASSETS_PUBLIC, { recursive: true });
 
+  const { sidebar, dominios } = lerNav();
+  const totalTopicos = dominios.reduce((s, d) => s + d.paginas.length, 0);
+  let home;
   for (const rel of arquivos) {
-    const { titulo, corpo } = converterPagina(fs.readFileSync(path.join(DOCS, rel), 'utf8'), rel, slugs);
-    const ehHome = slugDe(rel) === '';
-    const fm = ehHome
-      ? { title: titulo, template: 'splash', hero: { title: titulo, tagline: 'Preparação para a CKA em português, do jeito que a prova cobra: comando, YAML e pegadinha.' } }
-      : { title: titulo };
+    let { titulo, corpo } = converterPagina(fs.readFileSync(path.join(DOCS, rel), 'utf8'), rel, slugs);
+    let fm = { title: titulo };
+    if (slugDe(rel) === '') {
+      const separado = separarHome(corpo, totalTopicos);
+      ({ home, corpo } = separado);
+      fm = { title: titulo, template: 'splash', hero: { title: titulo, tagline: separado.tagline } };
+    }
     const destino = path.join(SAIDA, rel);
     fs.mkdirSync(path.dirname(destino), { recursive: true });
     fs.writeFileSync(destino, `---\n${YAML.stringify(fm)}---\n${corpo}`);
   }
 
-  const { sidebar, dominios } = lerNav();
   const todosDominios = lerDominiosDaHome(dominios);
-  fs.writeFileSync(path.join(GERADO, 'nav.json'), JSON.stringify({ sidebar, dominios: todosDominios }, null, 2));
+  fs.writeFileSync(path.join(GERADO, 'nav.json'), JSON.stringify({ sidebar, dominios: todosDominios, home }, null, 2));
   console.log(`sync-docs: ${arquivos.length} páginas, ${todosDominios.length} domínios (${dominios.length} com conteúdo)`);
 }
 

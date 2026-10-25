@@ -277,6 +277,30 @@ def kubeadm_join() -> Pagina:
     return p
 
 
+def fundamentos() -> Pagina:
+    # Origem: docs/trilhas/fundamentos.md (trilha "Começar do zero"). Dentro do namespace: a cadeia
+    # Deployment → ReplicaSet → Pods em cima; embaixo, o Service que acha os mesmos Pods pelo label.
+    p = Pagina("Fundamentos: do Deployment ao Service", 1180, 640)
+    p.cabecalho("Fundamentos: do Deployment ao Service",
+                "O Deployment mantém as cópias do Pod; o Service acha essas cópias pelo label")
+    p.fronteira(20, 90, 1140, 530, "namespace estudo", "k8s", tracejada=True, icone="ns")
+    dep = p.I("deploy", 120, 220, "Deployment loja<br>replicas: 3")
+    rs = p.I("rs", 400, 220, "ReplicaSet<br>loja-54f7ccdbb4")
+    pods = [p.I("pod", 760, y, f"Pod loja-...<br>app=loja", tam=48, pos="right") for y in (150, 260, 370)]
+    svc = p.I("svc", 400, 500, "Service loja<br>selector: app=loja")
+    cli = p.I("pod", 120, 500, "Pod de teste<br>wget http://loja", tam=48)
+    p.seta(dep, rs, "cria e atualiza")
+    for alvo in pods:
+        p.seta(rs, alvo, ortho=True)
+    p.seta(cli, svc, "nome e IP fixos")
+    # coluna própria (x=650) para não correr junto das setas do ReplicaSet, que usam o meio do Pod
+    for alvo, y in zip(pods, (150, 260, 370)):
+        p.seta(svc, alvo, saida=(1, 0.5), entrada=(0, 0.8), pontos=[(650, 500), (650, y + 14)],
+               tracejada=True, cor=K8S_AZUL)
+    p.B(1000, 260, 220, 120, "Pod apagado?<br>O ReplicaSet cria<br>outro, com nome novo", "ok")
+    return p
+
+
 def drain() -> Pagina:
     # Origem: docs/01-cluster-architecture/drain-cordon-uncordon.md (diagrama de sequência).
     p = Pagina("kubectl drain: a sequência", 1200, 600)
@@ -848,6 +872,7 @@ DIAGRAMAS = {
     "05-pods": pods,
     "05-no-notready": no_notready,
     "05-control-plane": control_plane,
+    "00-fundamentos": fundamentos,
 }
 
 

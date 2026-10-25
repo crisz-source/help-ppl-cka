@@ -187,9 +187,9 @@ kubectl get csr            # CSR com REQUESTOR system:bootstrap:<id> e CONDITION
 
 Se o nó aparece mas fica `NotReady`, o problema já não é o join: veja [Nó NotReady](../05-troubleshooting/no-notready.md).
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Num cluster kind com um worker (`kind create cluster --config` com `role: worker`), os nós são containers: `docker exec -it <nome>-worker bash` faz o papel do `ssh node01`. O roteiro desta página (drain, delete, `kubeadm reset`, novo join) foi testado assim.
-- Apague o token com `kubeadm token delete` e tente o join: veja a espera de 5 minutos e a mensagem final.
-- Troque um caractere do hash e compare: esse erro aparece na hora.
-- Rode `kubeadm join ... --v=5` para ver cada verificação do preflight e cada tentativa da descoberta.
+    - Num cluster kind com um worker (`kind create cluster --config` com `role: worker`), os nós são containers: `docker exec -it <nome>-worker bash` faz o papel do `ssh node01`. O roteiro desta página (drain, delete, `kubeadm reset`, novo join) foi testado assim.
+    - Apague o token com `kubeadm token delete` e tente o join: veja a espera de 5 minutos e a mensagem final.
+    - Troque um caractere do hash e compare: esse erro aparece na hora.
+    - Rode `kubeadm join ... --v=5` para ver cada verificação do preflight e cada tentativa da descoberta.

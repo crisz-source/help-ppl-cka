@@ -104,35 +104,37 @@ kubectl run dns-custom --image=nginx --dry-run=client -o yaml > pod-dns.yaml
 
 `Corefile` padrão do kubeadm (ConfigMap `coredns` em `kube-system`), comentado:
 
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: coredns
-  namespace: kube-system
-data:
-  Corefile: |
-    .:53 {
-        errors                      # loga erros
-        health {                    # /health na porta 8080 (livenessProbe)
-           lameduck 5s
+??? example "YAML completo: ConfigMap"
+
+    ```yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: coredns
+      namespace: kube-system
+    data:
+      Corefile: |
+        .:53 {
+            errors                      # loga erros
+            health {                    # /health na porta 8080 (livenessProbe)
+               lameduck 5s
+            }
+            ready                       # /ready na porta 8181 (readinessProbe)
+            kubernetes cluster.local in-addr.arpa ip6.arpa {   # responde pelo domínio do cluster
+               pods insecure            # habilita os registros <ip-com-hifens>.<ns>.pod
+               fallthrough in-addr.arpa ip6.arpa
+               ttl 30
+            }
+            prometheus :9153            # métricas
+            forward . /etc/resolv.conf {   # o que não é do cluster vai para o DNS do nó
+               max_concurrent 1000
+            }
+            cache 30
+            loop                        # detecta loop de encaminhamento e derruba o CoreDNS de propósito
+            reload                      # recarrega quando o ConfigMap muda
+            loadbalance
         }
-        ready                       # /ready na porta 8181 (readinessProbe)
-        kubernetes cluster.local in-addr.arpa ip6.arpa {   # responde pelo domínio do cluster
-           pods insecure            # habilita os registros <ip-com-hifens>.<ns>.pod
-           fallthrough in-addr.arpa ip6.arpa
-           ttl 30
-        }
-        prometheus :9153            # métricas
-        forward . /etc/resolv.conf {   # o que não é do cluster vai para o DNS do nó
-           max_concurrent 1000
-        }
-        cache 30
-        loop                        # detecta loop de encaminhamento e derruba o CoreDNS de propósito
-        reload                      # recarrega quando o ConfigMap muda
-        loadbalance
-    }
-```
+    ```
 
 Pod com DNS personalizado:
 
@@ -240,10 +242,10 @@ Address 1: 10.96.45.12 nginx-resolver-svc.default.svc.cluster.local
 pod "test-nslookup" deleted
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Escale o CoreDNS para 0 (`kubectl -n kube-system scale deploy coredns --replicas=0`) e veja o que acontece com a resolução. Depois volte para 2. É treino direto de Troubleshooting.
-- Crie um StatefulSet com Service headless e resolva `web-0.<svc>.<ns>.svc.cluster.local`.
-- Adicione um bloco de domínio encaminhado ao Corefile apontando para um DNS que não existe e acompanhe os logs do CoreDNS.
-- Crie um Pod com `dnsPolicy: Default` e compare o `/etc/resolv.conf` dele com o de um Pod comum e com o do nó.
-- No lab kubeadm, procure `clusterDNS` em `/var/lib/kubelet/config.yaml` dos nós e confirme que bate com o IP do Service `kube-dns`.
+    - Escale o CoreDNS para 0 (`kubectl -n kube-system scale deploy coredns --replicas=0`) e veja o que acontece com a resolução. Depois volte para 2. É treino direto de Troubleshooting.
+    - Crie um StatefulSet com Service headless e resolva `web-0.<svc>.<ns>.svc.cluster.local`.
+    - Adicione um bloco de domínio encaminhado ao Corefile apontando para um DNS que não existe e acompanhe os logs do CoreDNS.
+    - Crie um Pod com `dnsPolicy: Default` e compare o `/etc/resolv.conf` dele com o de um Pod comum e com o do nó.
+    - No lab kubeadm, procure `clusterDNS` em `/var/lib/kubelet/config.yaml` dos nós e confirme que bate com o IP do Service `kube-dns`.

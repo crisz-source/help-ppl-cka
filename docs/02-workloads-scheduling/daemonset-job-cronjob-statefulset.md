@@ -89,38 +89,40 @@ kubectl run dns --image=busybox:1.36 --rm -it --restart=Never -- nslookup db-0.d
 
 **DaemonSet** que roda também no control plane:
 
-```yaml
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: agente
-  namespace: kube-system
-spec:
-  selector:
-    matchLabels:
-      app: agente
-  updateStrategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 1
-  template:
+??? example "YAML completo: DaemonSet"
+
+    ```yaml
+    apiVersion: apps/v1
+    kind: DaemonSet
     metadata:
-      labels:
-        app: agente
+      name: agente
+      namespace: kube-system
     spec:
-      tolerations:
-        - key: node-role.kubernetes.io/control-plane
-          operator: Exists
-          effect: NoSchedule
-      containers:
-        - name: agente
-          image: busybox:1.36
-          command: ["sh", "-c", "while true; do date; sleep 60; done"]
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-```
+      selector:
+        matchLabels:
+          app: agente
+      updateStrategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxUnavailable: 1
+      template:
+        metadata:
+          labels:
+            app: agente
+        spec:
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+          containers:
+            - name: agente
+              image: busybox:1.36
+              command: ["sh", "-c", "while true; do date; sleep 60; done"]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+    ```
 
 **Job** paralelo:
 
@@ -146,79 +148,83 @@ spec:
 
 **CronJob**:
 
-```yaml
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: backup
-spec:
-  schedule: "0 2 * * *"              # todo dia às 02:00
-  timeZone: America/Sao_Paulo
-  concurrencyPolicy: Forbid
-  successfulJobsHistoryLimit: 3
-  failedJobsHistoryLimit: 1
-  startingDeadlineSeconds: 120
-  jobTemplate:                       # o spec de um Job inteiro aqui dentro
+??? example "YAML completo: CronJob"
+
+    ```yaml
+    apiVersion: batch/v1
+    kind: CronJob
+    metadata:
+      name: backup
     spec:
-      backoffLimit: 2
-      template:
+      schedule: "0 2 * * *"              # todo dia às 02:00
+      timeZone: America/Sao_Paulo
+      concurrencyPolicy: Forbid
+      successfulJobsHistoryLimit: 3
+      failedJobsHistoryLimit: 1
+      startingDeadlineSeconds: 120
+      jobTemplate:                       # o spec de um Job inteiro aqui dentro
         spec:
-          restartPolicy: OnFailure
-          containers:
-            - name: backup
-              image: busybox:1.36
-              command: ["sh", "-c", "date; echo backup feito"]
-```
+          backoffLimit: 2
+          template:
+            spec:
+              restartPolicy: OnFailure
+              containers:
+                - name: backup
+                  image: busybox:1.36
+                  command: ["sh", "-c", "date; echo backup feito"]
+    ```
 
 **StatefulSet** com Service headless e um disco por Pod:
 
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: db
-spec:
-  clusterIP: None                    # headless: DNS por Pod, sem IP virtual
-  selector:
-    app: db
-  ports:
-    - port: 80
-      name: web
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: db
-spec:
-  serviceName: db                    # tem que ser o nome do Service headless
-  replicas: 3
-  selector:
-    matchLabels:
-      app: db
-  template:
+??? example "YAML completo: Service + StatefulSet"
+
+    ```yaml
+    apiVersion: v1
+    kind: Service
     metadata:
-      labels:
-        app: db
+      name: db
     spec:
-      containers:
-        - name: nginx
-          image: nginx:1.27
-          ports:
-            - containerPort: 80
-              name: web
-          volumeMounts:
-            - name: data
-              mountPath: /usr/share/nginx/html
-  volumeClaimTemplates:              # um PVC por Pod: data-db-0, data-db-1, data-db-2
-    - metadata:
-        name: data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 1Gi
-        # storageClassName: <classe>  # sem StorageClass padrão no cluster, os PVCs ficam Pending
-```
+      clusterIP: None                    # headless: DNS por Pod, sem IP virtual
+      selector:
+        app: db
+      ports:
+        - port: 80
+          name: web
+    ---
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: db
+    spec:
+      serviceName: db                    # tem que ser o nome do Service headless
+      replicas: 3
+      selector:
+        matchLabels:
+          app: db
+      template:
+        metadata:
+          labels:
+            app: db
+        spec:
+          containers:
+            - name: nginx
+              image: nginx:1.27
+              ports:
+                - containerPort: 80
+                  name: web
+              volumeMounts:
+                - name: data
+                  mountPath: /usr/share/nginx/html
+      volumeClaimTemplates:              # um PVC por Pod: data-db-0, data-db-1, data-db-2
+        - metadata:
+            name: data
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 1Gi
+            # storageClassName: <classe>  # sem StorageClass padrão no cluster, os PVCs ficam Pending
+    ```
 
 ## Na documentação oficial
 
@@ -319,9 +325,9 @@ $ kubectl logs job/cleanup-now
 cleanup
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Aplique o DaemonSet sem a toleration e compare o `DESIRED` com o número de nós.
-- Rode o Job paralelo do YAML de referência com `kubectl get pods -w` aberto e veja os Pods de 2 em 2.
-- Crie um Job com um comando que falha (`exit 1`), `backoffLimit: 2` e `restartPolicy: Never`: conte os Pods criados e leia o `Reason` do Job.
-- Aplique o StatefulSet, apague o `db-1` e veja-o voltar com o mesmo nome. Escale para 1 e confira que `data-db-1` e `data-db-2` continuam em `kubectl get pvc`.
+    - Aplique o DaemonSet sem a toleration e compare o `DESIRED` com o número de nós.
+    - Rode o Job paralelo do YAML de referência com `kubectl get pods -w` aberto e veja os Pods de 2 em 2.
+    - Crie um Job com um comando que falha (`exit 1`), `backoffLimit: 2` e `restartPolicy: Never`: conte os Pods criados e leia o `Reason` do Job.
+    - Aplique o StatefulSet, apague o `db-1` e veja-o voltar com o mesmo nome. Escale para 1 e confira que `data-db-1` e `data-db-2` continuam em `kubectl get pvc`.

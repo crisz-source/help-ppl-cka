@@ -47,40 +47,42 @@ kubectl explain resourcequota.spec
 
 ## YAML de referência
 
-```yaml
-apiVersion: v1
-kind: ResourceQuota
-metadata:
-  name: cota-dev
-  namespace: dev
-spec:
-  hard:
-    requests.cpu: "2"                # soma dos requests de CPU de todos os Pods
-    requests.memory: 2Gi
-    limits.cpu: "4"
-    limits.memory: 4Gi
-    pods: "10"
-    services: "5"
-    count/deployments.apps: "3"
-    persistentvolumeclaims: "4"
-    requests.storage: 20Gi
----
-# Padrões para os Pods que não declaram resources (senão a quota acima os recusa)
-apiVersion: v1
-kind: LimitRange
-metadata:
-  name: padroes
-  namespace: dev
-spec:
-  limits:
-    - type: Container
-      defaultRequest:
-        cpu: 100m
-        memory: 64Mi
-      default:
-        cpu: 200m
-        memory: 128Mi
-```
+??? example "YAML completo: ResourceQuota + LimitRange"
+
+    ```yaml
+    apiVersion: v1
+    kind: ResourceQuota
+    metadata:
+      name: cota-dev
+      namespace: dev
+    spec:
+      hard:
+        requests.cpu: "2"                # soma dos requests de CPU de todos os Pods
+        requests.memory: 2Gi
+        limits.cpu: "4"
+        limits.memory: 4Gi
+        pods: "10"
+        services: "5"
+        count/deployments.apps: "3"
+        persistentvolumeclaims: "4"
+        requests.storage: 20Gi
+    ---
+    # Padrões para os Pods que não declaram resources (senão a quota acima os recusa)
+    apiVersion: v1
+    kind: LimitRange
+    metadata:
+      name: padroes
+      namespace: dev
+    spec:
+      limits:
+        - type: Container
+          defaultRequest:
+            cpu: 100m
+            memory: 64Mi
+          default:
+            cpu: 200m
+            memory: 128Mi
+    ```
 
 Quota só para uma classe de prioridade (escopo):
 
@@ -186,9 +188,9 @@ $ kubectl describe rs -n team-a -l app=api | grep -A4 Events
   Warning  FailedCreate      10s   replicaset-controller  Error creating: pods "api-7c9d8b6f5-x2k4j" is forbidden: exceeded quota: cota, requested: limits.memory=256Mi,pods=1, used: limits.memory=1Gi,pods=4, limited: limits.memory=1Gi,pods=4
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Apague o LimitRange e rode `kubectl run x -n team-a --image=nginx:1.27`: leia a recusa `must specify`.
-- Crie a quota **depois** de já ter 5 Pods no namespace e confira que nenhum é removido; só o sexto é barrado.
-- Faça uma quota com `count/deployments.apps=1` e tente criar o segundo Deployment.
-- Use `kubectl get events -n team-a -w` em outro terminal enquanto escala o Deployment para 10.
+    - Apague o LimitRange e rode `kubectl run x -n team-a --image=nginx:1.27`: leia a recusa `must specify`.
+    - Crie a quota **depois** de já ter 5 Pods no namespace e confira que nenhum é removido; só o sexto é barrado.
+    - Faça uma quota com `count/deployments.apps=1` e tente criar o segundo Deployment.
+    - Use `kubectl get events -n team-a -w` em outro terminal enquanto escala o Deployment para 10.

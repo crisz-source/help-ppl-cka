@@ -198,10 +198,10 @@ $ kubectl describe node w1 | grep -A2 "Ready "
   Ready            Unknown   Fri, 23 Oct 2026 18:40:12 +0000   Fri, 23 Oct 2026 18:41:01 +0000   NodeStatusUnknown   Kubelet stopped posting node status.
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Pare o **containerd** em vez do kubelet (`systemctl stop containerd`) e compare as condições do nó com o caso do kubelet parado.
-- Edite `/etc/kubernetes/kubelet.conf` com uma porta errada (`:6444`), reinicie o kubelet e leia o `journalctl`. Desfaça depois.
-- Mude o `cgroupDriver` em `/var/lib/kubelet/config.yaml` para `cgroupfs`, reinicie e leia o erro.
-- Confira a validade do certificado do kubelet com `openssl x509 ... -dates` e compare com `kubeadm certs check-expiration` no control plane.
-- Faça uma cópia de cada arquivo antes de editar (`cp arquivo arquivo.bak`), para voltar rápido.
+    - Pare o **containerd** em vez do kubelet (`systemctl stop containerd`) e compare as condições do nó com o caso do kubelet parado.
+    - Edite `/etc/kubernetes/kubelet.conf` com uma porta errada (`:6444`), reinicie o kubelet e leia o `journalctl`. Desfaça depois.
+    - Mude o `cgroupDriver` em `/var/lib/kubelet/config.yaml` para `cgroupfs`, reinicie e leia o erro.
+    - Confira a validade do certificado do kubelet com `openssl x509 ... -dates` e compare com `kubeadm certs check-expiration` no control plane.
+    - Faça uma cópia de cada arquivo antes de editar (`cp arquivo arquivo.bak`), para voltar rápido.

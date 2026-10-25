@@ -117,31 +117,33 @@ kubectl -n kube-system exec etcd-controlplane -- etcdctl \
 
 Trecho do `/etc/kubernetes/manifests/etcd.yaml` que importa para o restore:
 
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: etcd
-  namespace: kube-system
-spec:
-  containers:
-    - name: etcd
-      command:
-        - etcd
-        - --data-dir=/var/lib/etcd          # caminho DENTRO do container: pode ficar igual
-        - --cert-file=/etc/kubernetes/pki/etcd/server.crt
-        - --key-file=/etc/kubernetes/pki/etcd/server.key
-        - --trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
-        - --listen-client-urls=https://127.0.0.1:2379,https://10.0.0.4:2379
-      volumeMounts:
-        - mountPath: /var/lib/etcd          # onde o container enxerga os dados
-          name: etcd-data
-  volumes:
-    - name: etcd-data
-      hostPath:
-        path: /var/lib/etcd-restore         # ← o restore muda SÓ isto (pasta no host)
-        type: DirectoryOrCreate
-```
+??? example "YAML completo: Pod"
+
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: etcd
+      namespace: kube-system
+    spec:
+      containers:
+        - name: etcd
+          command:
+            - etcd
+            - --data-dir=/var/lib/etcd          # caminho DENTRO do container: pode ficar igual
+            - --cert-file=/etc/kubernetes/pki/etcd/server.crt
+            - --key-file=/etc/kubernetes/pki/etcd/server.key
+            - --trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+            - --listen-client-urls=https://127.0.0.1:2379,https://10.0.0.4:2379
+          volumeMounts:
+            - mountPath: /var/lib/etcd          # onde o container enxerga os dados
+              name: etcd-data
+      volumes:
+        - name: etcd-data
+          hostPath:
+            path: /var/lib/etcd-restore         # ← o restore muda SÓ isto (pasta no host)
+            type: DirectoryOrCreate
+    ```
 
 Trocar só o `hostPath.path` é o caminho mais curto: o container continua vendo `/var/lib/etcd`, mas agora o conteúdo vem da pasta restaurada. Se você mudar `--data-dir`, precisa mudar também o `mountPath`, senão o etcd sobe vazio.
 
@@ -201,8 +203,8 @@ crictl ps | grep -E 'etcd|kube-apiserver'                # os dois rodando de no
 kubectl get pods -A                                      # estado do snapshot antigo
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- No lab kubeadm: faça backup, crie um Deployment `teste-restore`, restaure o snapshot e confirme que o Deployment **sumiu**. É a prova de que o restore funcionou.
-- Rode `etcdctl version`. Se for 3.5, compare `etcdctl snapshot restore` com `etcdutl snapshot restore` e veja o aviso de depreciação. Se for 3.6+, confirme que o `etcdctl` não tem mais o subcomando `restore`.
-- Quebre o restore de propósito (mude `--data-dir` sem mudar o volume) e investigue com `crictl logs <id-do-etcd>`. Ótimo treino de Troubleshooting.
+    - No lab kubeadm: faça backup, crie um Deployment `teste-restore`, restaure o snapshot e confirme que o Deployment **sumiu**. É a prova de que o restore funcionou.
+    - Rode `etcdctl version`. Se for 3.5, compare `etcdctl snapshot restore` com `etcdutl snapshot restore` e veja o aviso de depreciação. Se for 3.6+, confirme que o `etcdctl` não tem mais o subcomando `restore`.
+    - Quebre o restore de propósito (mude `--data-dir` sem mudar o volume) e investigue com `crictl logs <id-do-etcd>`. Ótimo treino de Troubleshooting.

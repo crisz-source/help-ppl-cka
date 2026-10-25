@@ -72,39 +72,41 @@ kubectl get --raw='/readyz?verbose' | tail -5
 
 O manifesto do kube-apiserver, com os pontos onde cenários da prova costumam plantar o erro:
 
-```yaml
-# /etc/kubernetes/manifests/kube-apiserver.yaml (trecho)
-apiVersion: v1
-kind: Pod
-metadata:
-  name: kube-apiserver
-  namespace: kube-system
-spec:
-  hostNetwork: true
-  containers:
-    - name: kube-apiserver
-      image: registry.k8s.io/kube-apiserver:v1.36.5    # tag inexistente = ImagePull no nó
-      command:
-        - kube-apiserver
-        - --advertise-address=10.0.1.4
-        - --etcd-servers=https://127.0.0.1:2379        # porta errada = apiserver não sobe
-        - --etcd-cafile=/etc/kubernetes/pki/etcd/ca.crt
-        - --etcd-certfile=/etc/kubernetes/pki/apiserver-etcd-client.crt
-        - --etcd-keyfile=/etc/kubernetes/pki/apiserver-etcd-client.key
-        - --secure-port=6443
-        - --tls-cert-file=/etc/kubernetes/pki/apiserver.crt
-        - --tls-private-key-file=/etc/kubernetes/pki/apiserver.key
-        - --authorization-mode=Node,RBAC
-      volumeMounts:
+??? example "YAML completo: Pod"
+
+    ```yaml
+    # /etc/kubernetes/manifests/kube-apiserver.yaml (trecho)
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: kube-apiserver
+      namespace: kube-system
+    spec:
+      hostNetwork: true
+      containers:
+        - name: kube-apiserver
+          image: registry.k8s.io/kube-apiserver:v1.36.5    # tag inexistente = ImagePull no nó
+          command:
+            - kube-apiserver
+            - --advertise-address=10.0.1.4
+            - --etcd-servers=https://127.0.0.1:2379        # porta errada = apiserver não sobe
+            - --etcd-cafile=/etc/kubernetes/pki/etcd/ca.crt
+            - --etcd-certfile=/etc/kubernetes/pki/apiserver-etcd-client.crt
+            - --etcd-keyfile=/etc/kubernetes/pki/apiserver-etcd-client.key
+            - --secure-port=6443
+            - --tls-cert-file=/etc/kubernetes/pki/apiserver.crt
+            - --tls-private-key-file=/etc/kubernetes/pki/apiserver.key
+            - --authorization-mode=Node,RBAC
+          volumeMounts:
+            - name: k8s-certs
+              mountPath: /etc/kubernetes/pki               # caminho de cert fora do volume = arquivo não encontrado
+              readOnly: true
+      volumes:
         - name: k8s-certs
-          mountPath: /etc/kubernetes/pki               # caminho de cert fora do volume = arquivo não encontrado
-          readOnly: true
-  volumes:
-    - name: k8s-certs
-      hostPath:
-        path: /etc/kubernetes/pki
-        type: DirectoryOrCreate
-```
+          hostPath:
+            path: /etc/kubernetes/pki
+            type: DirectoryOrCreate
+    ```
 
 ## Na documentação oficial
 
@@ -216,9 +218,9 @@ NAME    READY   STATUS    RESTARTS   AGE   IP              NODE
 check   1/1     Running   0          2m    10.244.80.230   w2
 ```
 
-**No lab / Killercoda:**
+??? tip "No lab / Killercoda"
 
-- Faça backup do manifesto do kube-apiserver **fora** da pasta, troque `--etcd-servers` para a porta `2380` e acompanhe com `watch crictl ps -a`: o apiserver sobe e morre. Leia o motivo em `/var/log/pods/kube-system_kube-apiserver-*/`. Restaure o backup.
-- Quebre a indentação do manifesto do scheduler e veja o container sumir e o erro aparecer no `journalctl -u kubelet`.
-- Deixe um `kube-scheduler.yaml.bak` **dentro** da pasta de manifestos, edite o `kube-scheduler.yaml` e confira com `crictl inspect` que a edição não entrou. Compare com o [teste real](#teste-real-um-bak-dentro-da-pasta-de-manifestos).
-- Pare o controller-manager (`mv` do manifesto) e crie um Deployment: confira que nenhum ReplicaSet aparece.
+    - Faça backup do manifesto do kube-apiserver **fora** da pasta, troque `--etcd-servers` para a porta `2380` e acompanhe com `watch crictl ps -a`: o apiserver sobe e morre. Leia o motivo em `/var/log/pods/kube-system_kube-apiserver-*/`. Restaure o backup.
+    - Quebre a indentação do manifesto do scheduler e veja o container sumir e o erro aparecer no `journalctl -u kubelet`.
+    - Deixe um `kube-scheduler.yaml.bak` **dentro** da pasta de manifestos, edite o `kube-scheduler.yaml` e confira com `crictl inspect` que a edição não entrou. Compare com o [teste real](#teste-real-um-bak-dentro-da-pasta-de-manifestos).
+    - Pare o controller-manager (`mv` do manifesto) e crie um Deployment: confira que nenhum ReplicaSet aparece.
