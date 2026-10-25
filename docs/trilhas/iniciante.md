@@ -1,12 +1,12 @@
 # Começar do zero
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-25 · Trilha para quem conhece Linux e containers, mas ainda não tem segurança com Kubernetes
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · Trilha para quem conhece Linux e containers, mas ainda não tem segurança com Kubernetes
 
 **Objetivo:** construir a base antes de entrar nos detalhes da prova. São 12 passos. Cada um aponta para a página que ensina o assunto e termina com uma tarefa curta para fazer num cluster de estudo (kind, minikube ou Killercoda).
 
 Na primeira leitura, fique com "O que é", "Comandos essenciais" e o exercício de cada página. Os blocos recolhidos (YAML completo, "No lab") podem esperar a segunda volta.
 
-Todas as tarefas foram feitas num cluster kind v1.36.4; as soluções são os comandos usados.
+Todas as tarefas foram feitas no lab (kubeadm v1.37.1, 1 control plane + 2 workers, Calico, local-path-provisioner); as soluções são os comandos usados.
 
 ## 1. Fundamentos: Pod, namespace, labels, Deployment e Service
 
@@ -69,8 +69,8 @@ A solução está no fim da própria página.
 
     ```console
     $ kubectl -n estudo exec escritor -- cat /dados/notas.txt
-    Sun Oct 25 05:18:18 UTC 2026
-    Sun Oct 25 05:18:51 UTC 2026
+    Sun Oct 25 09:48:00 UTC 2026
+    Sun Oct 25 09:48:06 UTC 2026
     ```
 
     A segunda linha veio do Pod novo: o dado ficou no PVC, não no Pod.
@@ -201,7 +201,7 @@ A solução está no fim da própria página.
     kubectl -n estudo run t2 --rm -it --restart=Never --image=busybox:1.36 --labels=papel=frontend -- wget -qO- -T 5 http://loja # responde
     ```
 
-    O CNI precisa aplicar NetworkPolicy (o do kind aplica). Sem isso, a política é criada e não tem efeito.
+    O CNI precisa aplicar NetworkPolicy (o Calico do lab aplica; o Flannel sozinho não). Sem isso, a política é criada e não tem efeito.
 
 ## 11. Troubleshooting
 

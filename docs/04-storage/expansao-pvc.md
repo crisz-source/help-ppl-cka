@@ -1,6 +1,6 @@
 # Expansão de PVC
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Storage (10%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Storage (10%)
 
 ## O que é
 
@@ -24,6 +24,17 @@ São duas etapas:
 | **Nó**: aumentar o filesystem (ext4, xfs) | kubelet | Com o volume montado (expansão **online**, a maioria dos CSI) ou na próxima montagem |
 
 Durante o processo, o PVC mostra condições como `Resizing` e `FileSystemResizePending`. O tamanho só muda em `status.capacity` quando as duas etapas terminam. `spec` (o pedido) e `status` (o real) ficam diferentes enquanto isso.
+
+**Se a classe permite, mas o driver não sabe expandir**, a API aceita o pedido e nada acontece. No lab, com o local-path (que não expande) e `allowVolumeExpansion: true` na classe:
+
+```console
+$ kubectl get pvc reports -o jsonpath='{.spec.resources.requests.storage} pedido / {.status.capacity.storage} real{"\n"}'
+3Gi pedido / 1Gi real
+$ kubectl describe pvc reports | grep ExternalExpanding        # espaços de alinhamento encurtados
+  Normal  ExternalExpanding      30s   volume_expand    waiting for an external controller to expand this PVC
+```
+
+O PVC fica assim indefinidamente: não há `external-resizer` para fazer a primeira etapa.
 
 ## Comandos essenciais
 
@@ -85,9 +96,9 @@ kubectl patch sc rapido -p '{"allowVolumeExpansion":true}'
 
 ## Pegadinhas da prova
 
-- **A edição é recusada sem `allowVolumeExpansion: true`.** A mensagem diz `only dynamically provisioned pvc can be resized and the storageclass that provisions the pvc must support resize`.
-- **PV estático (criado à mão) não expande pela API.** Expansão é coisa de provisionamento dinâmico.
-- **Diminuir não existe.** Pedir menos que o atual é recusado (`field can not be less than status.capacity`).
+- **A edição é recusada sem `allowVolumeExpansion: true`.** A mensagem diz `persistentvolumeclaims "reports" is forbidden: only dynamically provisioned pvc can be resized and the storageclass that provisions the pvc must support resize`.
+- **PV estático (criado à mão) não expande pela API.** Expansão é coisa de provisionamento dinâmico: a recusa é a mesma mensagem acima.
+- **Diminuir não existe.** Pedir menos que o atual é recusado (`spec.resources.requests.storage: Forbidden: field can not be less than status.capacity`).
 - **Editar o PV em vez do PVC** não é o caminho. O pedido é feito no **PVC**.
 - **`CAPACITY` não mudou?** Olhe as condições do PVC. `FileSystemResizePending` quer dizer que falta a etapa do nó: com drivers sem expansão online, reinicie o Pod que usa o volume.
 - **Questão "o PVC deve ter 2Gi"**: confira as duas coisas, `spec.resources.requests.storage` e `status.capacity.storage`.
@@ -116,19 +127,10 @@ kubectl get pvc reports -n finance                       # CAPACITY 3Gi
 kubectl describe pvc reports -n finance | grep -A4 Events
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Num cluster com driver CSI que expande, o `CAPACITY` vai a `3Gi` e os eventos mostram `Resizing` (do `external-resizer`) e depois `FileSystemResizeSuccessful` (do kubelet).
 
-```console
-$ kubectl get pvc reports -n finance
-NAME      STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
-reports   Bound    pvc-8a2f6d1e-3b4c-4f7a-9e21-6c5d0b7a1f33   3Gi        RWO            standard-csi   12m
-$ kubectl describe pvc reports -n finance | grep -A4 Events
-Events:
-  Type    Reason                      Age   From                                Message
-  ----    ------                      ----  ----                                -------
-  Normal  Resizing                    20s   external-resizer disk.csi.azure.com External resizer is resizing volume pvc-8a2f6d1e-...
-  Normal  FileSystemResizeSuccessful  8s    kubelet                             MountVolume.NodeExpandVolume succeeded for volume "pvc-8a2f6d1e-..."
-```
+!!! warning "O que não foi testado"
+    O lab desta página (kubeadm em VMs, com o local-path-provisioner) não tem driver com expansão. Os comandos, as três recusas e o comportamento sem resizer foram conferidos na v1.37.1; o caminho de sucesso, com `CAPACITY` mudando, não. Para vê-lo, use um cluster gerenciado (AKS, EKS, GKE) ou o Killercoda.
 
 ??? tip "No lab / Killercoda"
 

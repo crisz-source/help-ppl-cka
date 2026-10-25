@@ -38,6 +38,12 @@ jobs:
       - run: npm run build
         working-directory: v2
       - run: cp -r v2/dist site/v2
+      # layout 3 (landing do Figma em v3/): só a página inicial, publicada em /v3/; os links levam ao /v2/
+      - run: npm ci
+        working-directory: v3
+      - run: npm run build
+        working-directory: v3
+      - run: cp -r v3/dist site/v3
       # repo privado no plano Free não tem Pages: só valida o build, sem publicar
       - if: ${{ !github.event.repository.private }}
         uses: actions/configure-pages@v6

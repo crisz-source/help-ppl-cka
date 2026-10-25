@@ -1,0 +1,392 @@
+---
+// Landing v3, a partir do frame "Landing — Estudo CKA em público" do Figma (arquivo mxwqiHZFtZn4ATgDPtGoXW).
+// Textos de marketing vêm do design; números, domínios e links vêm de src/dados.ts; as saídas de
+// terminal são do lab (kubeadm v1.37.1, 2026-10-25), não as ilustrativas do design.
+import '@fontsource/space-grotesk/500.css';
+import '@fontsource/space-grotesk/700.css';
+import '@fontsource/dm-sans/400.css';
+import '@fontsource/dm-sans/500.css';
+import '@fontsource/dm-sans/600.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '@fontsource/jetbrains-mono/700.css';
+import '../styles/v3.css';
+import {
+	BASE_PAGINAS, REPO, conferidoEm, dominios, link, maiorPeso, passosIniciante, todasPaginas, totalCenarios,
+	totalTopicos, urlDe, versaoLab,
+} from '../dados';
+
+const asset = (nome: string) => `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}assets/${nome}`;
+
+// uma cor por domínio, na ordem do design (azul, violeta, ciano, âmbar, rosa)
+const COR: Record<number, string> = { 1: 'azul', 2: 'violeta', 3: 'ciano', 4: 'ambar', 5: 'rosa' };
+// resumo curto de cada domínio (o design lista os assuntos principais, não todas as páginas)
+const RESUMO: Record<number, string> = {
+	1: 'RBAC · upgrade kubeadm · etcd backup/restore · Helm & Kustomize',
+	2: 'rollout/rollback · requests & limits · taints · affinity · HPA',
+	3: 'Services · DNS · NetworkPolicy · Ingress · Gateway API',
+	4: 'PV/PVC · StorageClass · reclaimPolicy · expansão de PVC',
+	5: 'logs e eventos · Pods com falha · nó NotReady · control plane',
+};
+const dominioMaisPesado = dominios.find((d) => d.peso === maiorPeso)!;
+
+const trilhas = [
+	{
+		titulo: 'Começar do zero', icone: '>_', cor: 'azul', destaque: true,
+		texto: 'Fundamentos de Kubernetes e preparação gradual para a CKA.',
+		meta: `${passosIniciante} passos · 1 tarefa cada`, href: link('trilhas/iniciante'),
+	},
+	{
+		titulo: 'Revisão rápida', icone: '⇄', cor: 'violeta',
+		texto: 'Comandos, sintaxe e pegadinhas para revisar antes da prova.',
+		meta: '1 cartão por tópico', href: link('trilhas/revisao-rapida'),
+	},
+	{
+		titulo: 'Treinar troubleshooting', icone: '!?', cor: 'rosa',
+		texto: 'Diagnóstico de Pods, nós, rede, storage e control plane.',
+		meta: `${totalCenarios} cenários por sintoma`, href: link('trilhas/troubleshooting'),
+	},
+];
+
+const atalhos = [
+	['Fundamentos', 'trilhas/fundamentos'],
+	['Comandos de memória', 'trilhas/comandos-de-memoria'],
+	['Pod não inicia', 'trilhas/troubleshooting/pod-nao-inicia'],
+	['Nó NotReady', 'trilhas/troubleshooting/no-notready'],
+	['Control plane', 'trilhas/troubleshooting/control-plane'],
+	['Armazenamento', 'trilhas/troubleshooting/armazenamento'],
+].map(([label, slug]) => ({ label, href: link(slug) }));
+
+const roteiro = [
+	['O que é', 'conceito direto'],
+	['Por dentro', 'como funciona'],
+	['Comandos', 'os essenciais'],
+	['YAML', 'de referência'],
+	['Doc oficial', 'onde achar'],
+	['Pegadinhas', 'o que derruba'],
+	['Exercício', 'estilo prova'],
+];
+
+// índice da busca do topo: todas as páginas do nav, com o grupo para desempatar nomes iguais
+const indiceBusca = todasPaginas.map((p) => ({
+	label: p.label === 'Visão geral' ? `${p.grupo.replace(/\s*\(\d+%\)$/, '')}: visão geral` : p.label,
+	grupo: p.grupo.replace(/\s*\(\d+%\)$/, ''),
+	href: urlDe(p.slug),
+}));
+---
+
+<!doctype html>
+<html lang="pt-BR">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Estudo CKA em público</title>
+		<meta name="description" content="CKA em português: comandos, YAML, troubleshooting e prática, testados num cluster kubeadm de verdade." />
+		<link rel="icon" href={asset('icon-k8s.svg')} type="image/svg+xml" />
+	</head>
+	<body>
+		<header class="nav" id="topo">
+			<div class="nav-in">
+				<a class="logo" href="#topo">
+					<span class="logo-mark"><img src={asset('icon-k8s.svg')} width="22" height="22" alt="" /></span>
+					<span class="logo-txt">
+						<strong>CKA em público</strong>
+						<small>estudo aberto · pt-BR</small>
+					</span>
+				</a>
+				<nav class="links" aria-label="Seções">
+					<a href="#trilhas">Trilhas</a>
+					<a href="#dominios">Domínios</a>
+					<a href={link('trilhas/revisao-rapida')}>Revisão rápida</a>
+					<a href={link('trilhas/troubleshooting')}>Troubleshooting</a>
+					<a href="#laboratorio">Laboratório</a>
+				</nav>
+				<div class="acoes">
+					<div class="busca" role="search">
+						<input id="busca" type="search" placeholder="Buscar tópico…" autocomplete="off" aria-label="Buscar tópico"
+							aria-controls="busca-lista" aria-expanded="false" />
+						<kbd aria-hidden="true">/</kbd>
+						<ul id="busca-lista" class="busca-lista" role="listbox" hidden></ul>
+					</div>
+					<a class="btn-github" href={REPO}>
+						<img src={asset('icon-star.svg')} width="16" height="16" alt="" />
+						<span>Star no GitHub</span>
+					</a>
+					<button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu-movel" aria-label="Abrir menu">
+						<span></span><span></span><span></span>
+					</button>
+				</div>
+			</div>
+			<nav id="menu-movel" class="menu-movel" aria-label="Menu" hidden>
+				<a href="#trilhas">Trilhas</a>
+				<a href="#dominios">Domínios</a>
+				<a href={link('trilhas/revisao-rapida')}>Revisão rápida</a>
+				<a href={link('trilhas/troubleshooting')}>Troubleshooting</a>
+				<a href="#laboratorio">Laboratório</a>
+				<a href={REPO}>Star no GitHub</a>
+			</nav>
+		</header>
+
+		<main>
+			<section class="hero">
+				<img class="bg-grid" src={asset('bg-grid.svg')} width="1440" height="820" alt="" />
+				<img class="glow glow-azul" src={asset('bg-glow-blue.svg')} width="940" height="840" alt="" />
+				<img class="glow glow-ciano" src={asset('bg-glow-cyan.svg')} width="880" height="780" alt="" />
+
+				<div class="hero-in">
+					<div class="hero-copy">
+						<p class="badge">
+							<img src={asset('dot-badge.svg')} width="24" height="24" alt="" />
+							Currículo conferido em {conferidoEm} · labs em Kubernetes {versaoLab}
+						</p>
+						<h1>Passe na CKA treinando <span class="grad">do jeito que a prova cobra.</span></h1>
+						<p class="lead">
+							Comandos, YAML, troubleshooting e prática — tudo em português. {totalTopicos} tópicos organizados pelos {dominios.length} domínios do currículo oficial da CNCF. Gratuito e open source.
+						</p>
+						<div class="ctas">
+							<a class="btn btn-primario" href={link('trilhas/iniciante')}>Começar do zero <span aria-hidden="true">→</span></a>
+							<a class="btn btn-secundario" href={urlDe(dominios[0].indice)}>Já sei o básico · ir ao Domínio 1</a>
+						</div>
+						<dl class="stats">
+							<div><dt>{totalTopicos}</dt><dd>tópicos</dd></div>
+							<div><dt>{dominios.length}</dt><dd>domínios</dd></div>
+							<div><dt>{totalCenarios}</dt><dd>cenários de falha</dd></div>
+							<div><dt>100%</dt><dd>gratuito</dd></div>
+						</dl>
+					</div>
+
+					<div class="hero-visual">
+						<div class="terminal" aria-label="Terminal do lab: o nó w1 está NotReady porque o kubelet parou">
+							<div class="term-barra">
+								<img src={asset('dot-red.svg')} width="11" height="11" alt="" />
+								<img src={asset('dot-yellow.svg')} width="11" height="11" alt="" />
+								<img src={asset('dot-green.svg')} width="11" height="11" alt="" />
+								<span>cka-lab — 1 control plane + 2 workers</span>
+							</div>
+							<!-- saídas reais do lab (v1.37.1, 2026-10-25), com o kubelet do w1 parado -->
+							<pre class="term-corpo"><span class="l"><b>$ </b><i>kubectl get nodes</i></span><span class="l dim">NAME   STATUS     ROLES           AGE     VERSION</span><span class="l">cp     <em class="ok">Ready</em>      control-plane   4h50m   v1.37.1</span><span class="l">w1     <em class="erro">NotReady</em>   &lt;none&gt;          4h49m   v1.37.1</span><span class="l">w2     <em class="ok">Ready</em>      &lt;none&gt;          168m    v1.37.1</span><span class="l"> </span><span class="l"><b>$ </b><i>ssh w1 systemctl is-active kubelet</i></span><span class="l"><em class="aviso">inactive</em></span><span class="l"> </span><span class="l dim"># Exercício: traga o w1 de volta para Ready</span><span class="l"><b>$ </b><i class="cursor">▍</i></span></pre>
+						</div>
+						<a class="chip chip-ts" href={urlDe(dominioMaisPesado.indice)}>
+							<img src={asset('chip-troubleshooting.svg')} width="34" height="34" alt="" />
+							<span><strong>{dominioMaisPesado.nome} = {dominioMaisPesado.peso}%</strong><small>o domínio que mais pesa</small></span>
+						</a>
+						<a class="chip chip-cen" href={link('trilhas/troubleshooting')}>
+							<img src={asset('chip-cenarios.svg')} width="34" height="34" alt="" />
+							<span><strong>{totalCenarios} cenários reais</strong><small>reproduzidos no lab</small></span>
+						</a>
+					</div>
+				</div>
+			</section>
+
+			<section class="secao" id="trilhas">
+				<div class="cab">
+					<p class="kicker ciano">01 · TRILHAS</p>
+					<h2>Escolha por onde começar</h2>
+					<p class="sub">Três caminhos para o mesmo objetivo. Pegue o que combina com o seu momento — dá para trocar a qualquer hora.</p>
+				</div>
+				<div class="cards">
+					{trilhas.map((t) => (
+						<a class:list={['card', `c-${t.cor}`, { destaque: t.destaque }]} href={t.href}>
+							<div class="card-topo">
+								<span class="icone">{t.icone}</span>
+								{t.destaque && <span class="tag">Recomendado</span>}
+							</div>
+							<h3>{t.titulo}</h3>
+							<p>{t.texto}</p>
+							<hr />
+							<div class="card-pe">
+								<span>{t.meta}</span>
+								<span class="abrir">Abrir →</span>
+							</div>
+						</a>
+					))}
+				</div>
+				<div class="atalhos">
+					<span>Atalhos:</span>
+					{atalhos.map((a) => <a class="pill" href={a.href}>{a.label}</a>)}
+				</div>
+			</section>
+
+			<section class="secao" id="dominios">
+				<div class="cab-linha">
+					<div class="cab">
+						<p class="kicker violeta">02 · CURRÍCULO OFICIAL</p>
+						<h2>{dominios.length} domínios. {totalTopicos} tópicos.<br />Pelo peso que cada um tem.</h2>
+					</div>
+					<p class="nota-prova"><strong>Prova 100% prática</strong><span>no terminal, com a documentação oficial aberta</span></p>
+				</div>
+				<div class="barra-pesos" aria-hidden="true">
+					{dominios.map((d) => (
+						<div class={`seg c-${COR[d.numero]}`} style={`flex-grow:${d.peso}`}>
+							<span class="seg-cor"></span>
+							<span class="seg-txt"><b>{d.peso}%</b> D{d.numero}</span>
+						</div>
+					))}
+				</div>
+				<ol class="lista-dominios">
+					{dominios.map((d) => (
+						<li class:list={[`c-${COR[d.numero]}`, { quente: d.peso === maiorPeso }]}>
+							<a href={urlDe(d.indice)}>
+								<span class="num">{d.numero}</span>
+								<span class="info">
+									<span class="titulo">{d.nome}{d.peso === maiorPeso && <span class="tag-quente">maior peso</span>}</span>
+									<span class="resumo">{d.paginas.length} tópicos · {RESUMO[d.numero]}</span>
+								</span>
+								<span class="peso">
+									<span class="trilho"><span class="preenche" style={`width:${(d.peso / maiorPeso) * 100}%`}></span></span>
+									<strong>{d.peso}%</strong>
+								</span>
+								<span class="seta" aria-hidden="true">→</span>
+							</a>
+						</li>
+					))}
+				</ol>
+				<p class="rodape-secao"><a href="#metodo">Toda página segue o mesmo formato — veja abaixo ↓</a></p>
+			</section>
+
+			<section class="secao metodo" id="metodo">
+				<div class="cab centro">
+					<p class="kicker verde">03 · MÉTODO</p>
+					<h2>Toda página, o mesmo roteiro</h2>
+					<p class="sub">Do conceito ao exercício no estilo da prova. Você sempre sabe onde está e o que vem depois.</p>
+				</div>
+				<ol class="roteiro">
+					{roteiro.map(([titulo, sub], i) => (
+						<li class:list={{ final: i === roteiro.length - 1 }}>
+							<span class="n">{String(i + 1).padStart(2, '0')}</span>
+							<strong>{titulo}</strong>
+							<span>{sub}</span>
+						</li>
+					))}
+				</ol>
+				<div class="amostra">
+					<div class="codigo">
+						<div class="codigo-cab">
+							<span>YAML de referência · default-deny-ingress.yaml</span>
+							<button type="button" class="copiar" data-copiar="yaml-amostra">copiar</button>
+						</div>
+						<!-- trecho da página NetworkPolicy -->
+						<pre id="yaml-amostra"><span class="k">apiVersion:</span> <span class="v">networking.k8s.io/v1</span>
+<span class="k">kind:</span> <span class="v">NetworkPolicy</span>
+<span class="k">metadata:</span>
+<span class="k">  name:</span> default-deny-ingress
+<span class="k">  namespace:</span> shop
+<span class="k">spec:</span>
+<span class="k">  podSelector:</span> <span class="a">{"{}"}</span>   <span class="c"># todos os Pods do namespace</span>
+<span class="k">  policyTypes:</span>
+  - <span class="v">Ingress</span>                 <span class="c"># sem bloco ingress = nada permitido</span></pre>
+					</div>
+					<div class="callouts">
+						<div class="callout pegadinha">
+							<p class="rotulo">⚠&nbsp;&nbsp;PEGADINHA</p>
+							<p><code>podSelector: {"{}"}</code> no <code>spec</code> seleciona todos os Pods do namespace — não nenhum. Sem regras de ingress, toda entrada é bloqueada.</p>
+						</div>
+						<div class="callout exercicio">
+							<div class="callout-cab">
+								<p class="rotulo">▶&nbsp;&nbsp;EXERCÍCIO ESTILO PROVA</p>
+								<span class="timer">Domínio 3</span>
+							</div>
+							<p>No namespace <code>shop</code> já existe uma default-deny de ingress. Permita que Pods <code>app=frontend</code> e qualquer Pod do namespace <code>monitoring</code> cheguem aos Pods <code>app=api</code> na porta TCP 8080.</p>
+							<a class="btn-verde" href={`${link('03-services-networking/network-policy')}#pratique`}>Ver solução comentada</a>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section class="secao" id="laboratorio">
+				<div class="cab">
+					<p class="kicker ambar">04 · AMBIENTE DE PRÁTICA</p>
+					<h2>Tudo testado num cluster de verdade</h2>
+					<p class="sub">Nada de teoria solta: cada comando e cada cenário de falha foi reproduzido no meu lab.</p>
+				</div>
+				<div class="lab-grid">
+					<div class="lab">
+						<div class="lab-cab">
+							<div>
+								<h3>Lab próprio com kubeadm</h3>
+								<p>VMs na Azure · Ubuntu 24.04 · containerd 2.2.1 · Calico</p>
+							</div>
+							<p class="versao"><b class="azul">v1.36</b> → upgrade → <b class="verde">v1.37</b></p>
+						</div>
+						<div class="vnet">
+							<p class="vnet-rot">azure · RG-CKA-LAB</p>
+							<div class="linha-cp">
+								<div class="no cp">
+									<p class="no-nome"><img src={asset('dot-node.svg')} width="8" height="8" alt="" />cp</p>
+									<p class="papel">control-plane</p>
+									<p class="pods"><span>apiserver</span><span>etcd</span><span>scheduler</span></p>
+								</div>
+							</div>
+							<div class="linha-workers">
+								<div class="no">
+									<p class="no-nome"><img src={asset('dot-node.svg')} width="8" height="8" alt="" />w1</p>
+									<p class="papel">worker</p>
+									<p class="pods"><span>kubelet</span><span>calico</span><span>ingress-nginx</span></p>
+								</div>
+								<div class="no">
+									<p class="no-nome"><img src={asset('dot-node.svg')} width="8" height="8" alt="" />w2</p>
+									<p class="papel">worker</p>
+									<p class="pods"><span>kubelet</span><span>calico</span><span>coredns</span></p>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="laterais">
+						<div class="lateral">
+							<p class="rotulo ciano">KILLERCODA</p>
+							<h3>Cenários rápidos e descartáveis</h3>
+							<p>Para treinar sem montar nada: abre no navegador, quebra, conserta e fecha.</p>
+						</div>
+						<div class="lateral">
+							<p class="rotulo violeta">PARA QUEM É</p>
+							<ul class="checks">
+								<li>Já conhece Linux e containers</li>
+								<li>Quer passar na CKA</li>
+								<li>Prefere estudar em português</li>
+							</ul>
+						</div>
+						<div class="lateral autor">
+							<p class="rotulo verde">QUEM ESCREVE</p>
+							<h3>Cristhian, DevOps</h3>
+							<p>
+								Cada saída do site foi copiada do terminal deste lab. Na revalidação para {versaoLab}, oito afirmações que
+								vinham de testes em kind se mostraram diferentes numa VM e foram corrigidas.
+							</p>
+							<a href={`${BASE_PAGINAS}/#quem-escreve-e-por-que-confiar`}>Por que confiar →</a>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section class="cta-sec">
+				<div class="cta">
+					<p class="cta-cmd">$ kubectl apply -f voce.yaml</p>
+					<h2>Estude em público. Passe junto.</h2>
+					<p>Gratuito, open source e revisado a cada mudança do currículo. Se ajudar, deixe uma estrela — é o que mantém o projeto vivo.</p>
+					<div class="cta-btns">
+						<a class="btn btn-branco" href={link('trilhas/iniciante')}>Começar agora <span aria-hidden="true">→</span></a>
+						<a class="btn btn-vidro" href={REPO}>★ Star no GitHub</a>
+					</div>
+				</div>
+			</section>
+		</main>
+
+		<footer class="rodape">
+			<div>
+				<strong>CKA em público</strong>
+				<span>Conteúdo revisado em {conferidoEm} · confira sempre o currículo oficial da CNCF</span>
+			</div>
+			<nav aria-label="Links externos">
+				<a href={REPO}>GitHub</a>
+				<a href="https://github.com/cncf/curriculum">Currículo CNCF</a>
+				<a href="https://killercoda.com/">Killercoda</a>
+				<a href="/help-ppl-cka/">Layout clássico</a>
+			</nav>
+		</footer>
+
+		<script type="application/json" id="indice-busca" set:html={JSON.stringify(indiceBusca)} />
+		<script>
+			import '../scripts/v3';
+		</script>
+	</body>
+</html>

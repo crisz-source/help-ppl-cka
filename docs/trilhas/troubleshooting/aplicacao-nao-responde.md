@@ -1,6 +1,6 @@
 # Aplicação não responde
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-25 · Trilha de troubleshooting · 4 cenários
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · Trilha de troubleshooting · 4 cenários
 
 Os Pods estão `Running`, mas a chamada à aplicação falha. O teste é sempre de **dentro** do cluster, com um Pod temporário:
 
@@ -16,29 +16,29 @@ O erro do `wget` já aponta a camada:
 | `Connection refused` | Service | [Selector errado](#service-sem-endpoints-selector-errado) ou [targetPort errado](#targetport-errado) |
 | `download timed out` | NetworkPolicy | [Tráfego bloqueado](#networkpolicy-bloqueando) |
 
-Neste laboratório, o Deployment `api` (nginx, porta 80, label `app=api`) roda no namespace `ts`.
+Neste laboratório (kubeadm v1.37.1, Calico), o Deployment `api` (nginx, porta 80, label `app=api`) roda no namespace `ts`.
 
 ## Service sem endpoints: selector errado
 
-1. **Sintoma:** `wget: can't connect to remote host (10.96.250.89): Connection refused`.
+1. **Sintoma:** `wget: can't connect to remote host (10.111.191.15): Connection refused`.
 2. **Primeiro comando:** `kubectl get endpointslices -l kubernetes.io/service-name=api-errado`
 3. **Evidência:** a lista de endpoints está vazia, e o selector não bate com os labels dos Pods:
 
     ```console
     $ kubectl get endpointslices -l kubernetes.io/service-name=api-errado
     NAME               ADDRESSTYPE   PORTS     ENDPOINTS   AGE
-    api-errado-mzqkj   IPv4          <unset>   <unset>     0s
+    api-errado-ngr4v   IPv4          <unset>   <unset>     3s
     $ kubectl describe svc api-errado | grep -E 'Selector|Endpoints'
     Selector:                 app=api-errado
     Endpoints:
     $ kubectl get pods -l app=api --show-labels
     NAME                   READY   STATUS    RESTARTS   AGE   LABELS
-    api-654f75d7cb-n2vk8   1/1     Running   0          1s    app=api,pod-template-hash=654f75d7cb
+    api-7c5b468964-qh27q   1/1     Running   0          4s    app=api,pod-template-hash=7c5b468964
     ```
 
 4. **Causas prováveis:** selector com outro label (o `kubectl create service` inventa `app=<nome-do-service>`), Service em outro namespace, ou Pods que não estão Ready (readinessProbe falhando).
 5. **Correção:** `kubectl patch svc api-errado -p '{"spec":{"selector":{"app":"api"}}}'`
-6. **Validar:** o EndpointSlice passa a listar os IPs dos Pods (`10.244.1.32,10.244.1.31`) e o `wget` devolve a página.
+6. **Validar:** o EndpointSlice passa a listar os IPs dos Pods (`10.244.190.127,10.244.80.214`) e o `wget` devolve a página.
 
 ## targetPort errado
 
@@ -48,8 +48,8 @@ Neste laboratório, o Deployment `api` (nginx, porta 80, label `app=api`) roda n
 
     ```console
     $ kubectl get endpointslices -l kubernetes.io/service-name=api-porta
-    NAME              ADDRESSTYPE   PORTS   ENDPOINTS                 AGE
-    api-porta-rwgvl   IPv4          8080    10.244.1.31,10.244.1.32   4s
+    NAME              ADDRESSTYPE   PORTS   ENDPOINTS                      AGE
+    api-porta-4pkkd   IPv4          8080    10.244.190.127,10.244.80.214   7s
     ```
 
 4. **Causas prováveis:** `targetPort` diferente da porta em que o container escuta. Sem `targetPort`, ele assume o valor de `port`.
@@ -65,12 +65,12 @@ A diferença entre os dois cenários está toda no EndpointSlice: **vazio** = se
 3. **Evidência:** a busca começa pelo namespace **do Pod**:
 
     ```console
-    search default.svc.cluster.local svc.cluster.local cluster.local
+    search default.svc.cluster.local svc.cluster.local cluster.local j0nzkcbsfnuubgfdcrqy4sr45f.nx.internal.cloudapp.net
     nameserver 10.96.0.10
     options ndots:5
     ```
 
-    `api` vira `api.default.svc.cluster.local`, que não existe.
+    `api` vira `api.default.svc.cluster.local`, que não existe. (O último domínio é o da rede da Azure, herdado do nó.)
 
 4. **Causas prováveis:** nome curto usado a partir de outro namespace, ou nome do Service digitado errado.
 5. **Correção:** usar `api.ts` (Service + namespace) ou o FQDN `api.ts.svc.cluster.local`.

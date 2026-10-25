@@ -187,6 +187,25 @@ function lerDominiosDaHome(dominiosNav) {
   });
 }
 
+/** Rótulos de "Anterior"/"Próximo" por slug. "Visão geral" sozinho não diz de qual domínio é, o que
+ *  confunde no celular, onde o menu está fechado; aqui ele vira "Domínio 3: visão geral". */
+function rotulosDePaginacao(sidebar) {
+  const plana = [];
+  const percorrer = (itens, grupo) => itens.forEach((i) => {
+    if (i.items) return percorrer(i.items, i.label);
+    const curto = grupo?.match(/^(\d+)\./) ? `Domínio ${grupo.match(/^(\d+)\./)[1]}` : grupo;
+    plana.push({ slug: i.slug, label: i.label === 'Visão geral' && curto ? `${curto}: visão geral` : i.label });
+  });
+  percorrer(sidebar);
+  const rotulos = new Map();
+  plana.forEach((e, n) => {
+    if (e.slug === undefined) return;
+    const prev = plana[n - 1]?.label, next = plana[n + 1]?.label;
+    rotulos.set(e.slug, { prev, next });
+  });
+  return rotulos;
+}
+
 function main() {
   const arquivos = listarMd(DOCS).map((p) => path.relative(DOCS, p));
   const slugs = new Set(arquivos.map(slugDe));
@@ -197,10 +216,14 @@ function main() {
 
   const { sidebar, dominios } = lerNav();
   const totalTopicos = dominios.reduce((s, d) => s + d.paginas.length, 0);
+  const paginacao = rotulosDePaginacao(sidebar);
   let home;
   for (const rel of arquivos) {
     let { titulo, corpo } = converterPagina(fs.readFileSync(path.join(DOCS, rel), 'utf8'), rel, slugs);
     let fm = { title: titulo };
+    const vizinhos = paginacao.get(slugDe(rel));
+    if (vizinhos?.prev?.endsWith(': visão geral')) fm.prev = vizinhos.prev;
+    if (vizinhos?.next?.endsWith(': visão geral')) fm.next = vizinhos.next;
     if (slugDe(rel) === '') {
       const separado = separarHome(corpo, totalTopicos);
       ({ home, corpo } = separado);

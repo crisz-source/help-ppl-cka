@@ -11,6 +11,7 @@ theme:
     - navigation.sections
     - navigation.indexes
     - navigation.top
+    - navigation.footer       # "Anterior" / "Próximo" no fim da página (no celular, evita abrir o menu)
     - content.code.copy
     - search.suggest
     - search.highlight
@@ -23,6 +24,12 @@ theme:
       toggle:
         icon: material/weather-sunny
         name: Modo claro
+
+extra_css:
+  - stylesheets/terminal.css   # saídas ```console com cara de terminal
+
+hooks:
+  - hooks/busca.py             # tira a linha de versão do topo dos resultados da busca
 
 markdown_extensions:
   - admonition

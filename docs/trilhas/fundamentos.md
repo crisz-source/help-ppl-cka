@@ -1,6 +1,6 @@
 # Fundamentos: Pod, namespace, labels, Deployment e Service
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-25 · Passo 1 da trilha [Começar do zero](iniciante.md)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · Passo 1 da trilha [Começar do zero](iniciante.md)
 
 Os cinco objetos que aparecem em quase toda questão da prova. As outras páginas do site partem do princípio de que eles já estão claros.
 
@@ -24,8 +24,8 @@ namespace/estudo created
 $ kubectl -n estudo run web --image=nginx:1.27 --labels=app=web,time=loja
 pod/web created
 $ kubectl -n estudo get pods -o wide --show-labels
-NAME   READY   STATUS    RESTARTS   AGE   IP            NODE         NOMINATED NODE   READINESS GATES   LABELS
-web    1/1     Running   0          1s    10.244.1.55   cka-worker   <none>           <none>            app=web,time=loja
+NAME   READY   STATUS    RESTARTS   AGE   IP              NODE   NOMINATED NODE   READINESS GATES   LABELS
+web    1/1     Running   0          0s    10.244.190.86   w1     <none>           <none>            app=web,time=loja
 ```
 
 `-o wide` mostra o IP e o nó; `--show-labels`, os labels. Um Pod avulso apagado some de vez:
@@ -47,24 +47,24 @@ NAME                   READY   UP-TO-DATE   AVAILABLE   AGE
 deployment.apps/loja   3/3     3            3           1s
 
 NAME                              DESIRED   CURRENT   READY   AGE
-replicaset.apps/loja-54f7ccdbb4   3         3         3       1s
+replicaset.apps/loja-77bcbb65d4   3         3         3       1s
 
 NAME                        READY   STATUS    RESTARTS   AGE
-pod/loja-54f7ccdbb4-b9l8g   1/1     Running   0          1s
-pod/loja-54f7ccdbb4-ckbz9   1/1     Running   0          1s
-pod/loja-54f7ccdbb4-sbg9l   1/1     Running   0          1s
+pod/loja-77bcbb65d4-jgrc5   1/1     Running   0          1s
+pod/loja-77bcbb65d4-qjhc9   1/1     Running   0          1s
+pod/loja-77bcbb65d4-rq77k   1/1     Running   0          1s
 ```
 
-O nome dos Pods é `<deployment>-<hash do ReplicaSet>-<sufixo>`. Apague um: o ReplicaSet cria outro na hora, com nome novo (`q985p`):
+O nome dos Pods é `<deployment>-<hash do ReplicaSet>-<sufixo>`. Apague um: o ReplicaSet cria outro na hora, com nome novo (`mppth`):
 
 ```console
-$ kubectl -n estudo delete pod loja-54f7ccdbb4-b9l8g
-pod "loja-54f7ccdbb4-b9l8g" deleted from estudo namespace
+$ kubectl -n estudo delete pod loja-77bcbb65d4-jgrc5
+pod "loja-77bcbb65d4-jgrc5" deleted from estudo namespace
 $ kubectl -n estudo get pods -l app=loja
 NAME                    READY   STATUS    RESTARTS   AGE
-loja-54f7ccdbb4-ckbz9   1/1     Running   0          5s
-loja-54f7ccdbb4-q985p   1/1     Running   0          4s
-loja-54f7ccdbb4-sbg9l   1/1     Running   0          5s
+loja-77bcbb65d4-mppth   1/1     Running   0          7s
+loja-77bcbb65d4-qjhc9   1/1     Running   0          8s
+loja-77bcbb65d4-rq77k   1/1     Running   0          8s
 ```
 
 Por isso, num Pod de Deployment, a correção vai sempre no **Deployment**: editar ou apagar o Pod não muda nada, o ReplicaSet recria igual.
@@ -88,10 +88,10 @@ $ kubectl -n estudo expose deployment loja --port=80
 service/loja exposed
 $ kubectl -n estudo get svc loja
 NAME   TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
-loja   ClusterIP   10.96.243.190   <none>        80/TCP    0s
+loja   ClusterIP   10.104.32.88   <none>        80/TCP    0s
 $ kubectl -n estudo get endpointslices -l kubernetes.io/service-name=loja
-NAME         ADDRESSTYPE   PORTS   ENDPOINTS                             AGE
-loja-p7rj9   IPv4          80      10.244.1.57,10.244.1.58,10.244.1.59   1s
+NAME         ADDRESSTYPE   PORTS   ENDPOINTS                                   AGE
+loja-2mkvr   IPv4          80      10.244.190.93,10.244.190.88,10.244.80.217   2s
 ```
 
 Os três IPs em `ENDPOINTS` são os Pods do Deployment. Para testar, chame o Service pelo nome de dentro do cluster:

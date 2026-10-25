@@ -1,8 +1,8 @@
 # Comandos de memória
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-25 · Folha de revisão para a semana da prova
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · Folha de revisão para a semana da prova
 
-Os comandos que aparecem em quase toda questão. Cada um foi rodado num cluster kind v1.36.4; as páginas dos domínios explicam o contexto de cada um.
+Os comandos que aparecem em quase toda questão. Cada um foi rodado no lab (kubeadm v1.37.1, 1 control plane + 2 workers); as páginas dos domínios explicam o contexto de cada um.
 
 ## Contexto e namespace
 
@@ -64,11 +64,11 @@ kubectl rollout undo deploy/web                      # volta para a revisão ant
 kubectl replace --force -f pod.yaml                  # apaga e recria (campo imutável)
 ```
 
-A maioria dos campos de um Pod não muda depois de criado. O `apply` recusa com esta mensagem (saída real):
+A maioria dos campos de um Pod não muda depois de criado. O `apply` recusa com esta mensagem (saída real, v1.37.1, depois de acrescentar uma porta ao container; o diff que o kubectl imprime em seguida foi cortado):
 
 ```console
 $ kubectl apply -f e.yaml
-The Pod "e" is invalid: spec: Forbidden: pod updates may not change fields other than `spec.containers[*].image`,`spec.initContainers[*].image`,`spec.activeDeadlineSeconds`,`spec.tolerations` ...
+The Pod "e" is invalid: spec: Forbidden: pod updates may not change fields other than `spec.containers[*].image`,`spec.initContainers[*].image`,`spec.activeDeadlineSeconds`,`spec.tolerations` (only additions to existing tolerations),`spec.terminationGracePeriodSeconds` (allow it to be set to 1 if it was previously negative)
 ```
 
 Nesse caso, `kubectl replace --force -f` apaga o Pod e cria de novo com o arquivo.
@@ -139,9 +139,9 @@ Saída real do `range` (nome e nó, um por linha):
 
 ```console
 $ kubectl get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.nodeName}{"\n"}{end}'
-db	cka-worker
-web-7d876db474-qxtdp	cka-worker
-web-7d876db474-v8n8t	cka-worker
+db	w1
+web-69c6f74b8b-l7c92	w2
+web-69c6f74b8b-w2cfw	w1
 ```
 
 Para descobrir o caminho de um campo, rode `kubectl get <objeto> -o yaml` e siga a indentação: `spec:` → `containers:` (lista, por isso `[0]`) → `image:`.

@@ -39,6 +39,14 @@
 	position: relative;
 }
 
+/* bolinhas da janela coloridas (vermelha, amarela, verde), como no terminal da home e no layout 1.
+   O Expressive Code desenha as três com uma máscara; o Starlight as pinta de cinza com box-shadow. */
+.expressive-code .frame.is-terminal figcaption.header::before {
+	box-shadow: none;
+	background: linear-gradient(90deg, #ff5f57 0 33.3%, #febc2e 33.3% 66.6%, #28c840 66.6%);
+	opacity: 1;
+}
+
 .term-rodar {
 	position: absolute;
 	inset-inline-end: 0.6rem;

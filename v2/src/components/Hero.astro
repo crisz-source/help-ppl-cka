@@ -12,19 +12,18 @@ const rota = (slug: string) => `${base}/${slug}/`;
 const comConteudo = nav.dominios.filter((d) => d.indice);
 const totalPaginas = nav.dominios.reduce((s, d) => s + d.paginas.length, 0);
 
-// saída ilustrativa (formato real do kubectl; nomes e idades inventados)
+// saída real do lab (kubeadm v1.37.1, 2026-10-25); o echo final é só a assinatura do terminal.
+// Comandos de saída estreita: a tabela do get nodes (47 colunas) é a mais larga que cabe num celular.
 const demo = [
 	{ cmd: 'kubectl get nodes' },
-	{ out: 'NAME       STATUS   ROLES           AGE' },
-	{ out: 'cp-1       Ready    control-plane   42d' },
-	{ out: 'worker-1   Ready    <none>          42d' },
-	{ out: 'worker-2   Ready    <none>          42d' },
-	{ cmd: 'kubectl get svc -n shop' },
-	{ out: 'NAME      TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE' },
-	{ out: 'web-svc   NodePort   10.96.120.15   <none>        80:30080/TCP   5m' },
-	{ cmd: 'kubectl get netpol -n shop' },
-	{ out: 'NAME                    POD-SELECTOR   AGE' },
-	{ out: 'allow-frontend-to-api   app=api        5m' },
+	{ out: 'NAME   STATUS   ROLES           AGE     VERSION' },
+	{ out: 'cp     Ready    control-plane   4h45m   v1.37.1' },
+	{ out: 'w1     Ready    <none>          4h45m   v1.37.1' },
+	{ out: 'w2     Ready    <none>          164m    v1.37.1' },
+	{ cmd: 'kubectl version' },
+	{ out: 'Client Version: v1.37.1' },
+	{ out: 'Kustomize Version: v5.8.1' },
+	{ out: 'Server Version: v1.37.1' },
 	{ cmd: 'echo "bora passar na CKA"' },
 	{ out: 'bora passar na CKA' },
 ];
@@ -274,6 +273,11 @@ const demo = [
 		background: transparent;
 		border: 0;
 		overflow-x: auto;
+	}
+	@media (max-width: 30rem) {
+		.demo-tela {
+			font-size: 0.7rem; /* 47 colunas do get nodes cabem em 360 px sem rolar */
+		}
 	}
 	.d-linha {
 		display: block;

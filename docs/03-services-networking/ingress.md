@@ -1,6 +1,6 @@
 # Ingress
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Services & Networking (20%)
+> **Versão do Kubernetes:** v1.37 (ingress-nginx controller v1.15.1, NodePort) · **Última revisão:** 2026-10-25 · **Domínio:** Services & Networking (20%)
 
 ## O que é
 
@@ -17,7 +17,7 @@ O Ingress sozinho não faz nada: é só um objeto guardado na API. Quem lê as r
 A API `networking.k8s.io/v1` do Ingress é **estável e congelada**: não recebe recursos novos. A evolução acontece na [Gateway API](gateway-api.md). O currículo cobra as duas.
 
 !!! warning "ingress-nginx aposentado"
-    O projeto comunitário **ingress-nginx** (`kubernetes/ingress-nginx`) foi aposentado pelo SIG Network: a manutenção terminou em março de 2026 e não há mais releases nem correções de segurança. O **objeto Ingress continua** no Kubernetes e na prova. Ambientes de prova e labs ainda podem usar o ingress-nginx; em produção, prefira outro controller ou a Gateway API. <!-- VERIFICAR: controller usado nos ambientes de prova atuais -->
+    O projeto comunitário **ingress-nginx** (`kubernetes/ingress-nginx`) foi aposentado pelo SIG Network: a manutenção terminou em março de 2026 e não há mais releases nem correções de segurança. O **objeto Ingress continua** no Kubernetes e na prova. Labs ainda usam o ingress-nginx (a última versão, `controller-v1.15.1`, foi a usada nos testes desta página); em produção, prefira outro controller ou a Gateway API. Na prova, não suponha o controller: use a IngressClass que `kubectl get ingressclass` mostrar.
 
 ## Como funciona por dentro
 
@@ -31,8 +31,8 @@ A API `networking.k8s.io/v1` do Ingress é **estável e congelada**: não recebe
 **Como o Ingress escolhe o controller:**
 
 - `spec.ingressClassName: nginx` aponta para a `IngressClass` chamada `nginx`.
-- Sem `ingressClassName`, vale a IngressClass marcada com a anotação `ingressclass.kubernetes.io/is-default-class: "true"`.
-- Sem campo e sem classe padrão, **nenhum controller assume** o Ingress: ele fica criado, mas não funciona (a coluna `ADDRESS` fica vazia).
+- Sem `ingressClassName`, vale a IngressClass marcada com a anotação `ingressclass.kubernetes.io/is-default-class: "true"`. Mas isso acontece **na criação**: a API preenche o `ingressClassName` do Ingress novo com a classe padrão. Um Ingress que já existia sem classe continua sem classe (no teste, marcar a classe como padrão não fez o Ingress antigo voltar a responder; um criado depois funcionou na hora).
+- Sem campo e sem classe padrão, **nenhum controller assume** o Ingress: ele fica criado, mas não funciona. O controller responde 404 para aquele host.
 - A anotação antiga `kubernetes.io/ingress.class` está depreciada. Use o campo.
 
 **pathType** (obrigatório em cada path):
@@ -163,10 +163,12 @@ spec:
 - **`pathType` é obrigatório** no YAML. O `kubectl create ingress` preenche sozinho: `*` no fim vira `Prefix`; sem `*` vira `Exact`. Um `--rule="/api=svc:80"` **não** atende `/api/users`.
 - **A porta do backend é a do Service**, não a do container.
 - **Namespace:** o Ingress só aponta para Services do **próprio namespace**. Para outro namespace, crie outro Ingress lá (ou use Gateway API com ReferenceGrant).
-- **Secret TLS no namespace errado** é ignorado: o controller passa a usar um certificado padrão (autoassinado).
+- **Secret TLS no namespace errado** (ou inexistente) é ignorado: o controller serve o certificado padrão dele. No teste: `subject: O=Acme Co; CN=Kubernetes Ingress Controller Fake Certificate`. Com o Secret certo, apareceu `subject: CN=loja.exemplo.com`.
+- **Com TLS, HTTP vira redirecionamento.** O ingress-nginx respondeu `308` para `https://loja.exemplo.com/` a uma chamada HTTP no mesmo host.
 - **`rewrite-target`** é anotação do ingress-nginx. Sem ela, o Pod recebe o caminho original (`/app/...`). Se a aplicação só responde em `/`, dá 404.
 - **`ADDRESS` vazio** em cluster kubeadm é comum mesmo funcionando, porque o controller costuma ficar em NodePort. Teste com `curl` na porta NodePort do controller.
-- **404 do controller** (resposta do nginx, não da aplicação) = nenhuma regra casou: host ou path errados. **503** = a regra casou, mas o Service não tem endpoints.
+- **404 do controller** (resposta do nginx, não da aplicação) = nenhuma regra casou: host ou path errados. **503** = a regra casou, mas o Service não tem endpoints. No teste: host inexistente → `404`; `api` com 0 réplicas → `503`.
+- **Host e caminho repetidos em dois Ingresses** são recusados pelo webhook do ingress-nginx: `admission webhook "validate.nginx.ingress.kubernetes.io" denied the request: host "shop.example.com" and path "/" is already defined in ingress shop/shop-ingress`.
 
 ## Pratique
 
@@ -196,20 +198,31 @@ curl -H "Host: shop.example.com" http://<IP-do-nó>:<nodePort>/api
 curl -H "Host: shop.example.com" http://<IP-do-nó>:<nodePort>/
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1, ingress-nginx em NodePort, por isso o `ADDRESS` vazio):
 
 ```console
 $ kubectl get ingress shop-ingress -n shop
-NAME           CLASS   HOSTS              ADDRESS    PORTS   AGE
-shop-ingress   nginx   shop.example.com   10.0.0.4   80      30s
+NAME           CLASS   HOSTS              ADDRESS   PORTS   AGE
+shop-ingress   nginx   shop.example.com             80      25s
 $ kubectl get ingress shop-ingress -n shop -o jsonpath='{.spec.rules[0].http.paths[*].pathType}'
 Prefix Prefix
+$ kubectl describe ingress shop-ingress -n shop
+Rules:
+  Host              Path  Backends
+  ----              ----  --------
+  shop.example.com
+                    /      web-svc:80 (10.244.80.201:80)
+                    /api   api-svc:8080 (10.244.190.78:8080)
+$ curl -H "Host: shop.example.com" http://10.0.1.5:30445/ | grep title
+<title>Welcome to nginx!</title>
 ```
+
+Com a regra `Exact` (`--rule="exato.example.com/api=..."`, sem `*`), `/api` respondeu `200` e `/api/users`, `404`.
 
 ??? tip "No lab / Killercoda"
 
     - No lab kubeadm, instale um controller em modo NodePort e repita o exercício. Libere o NodePort no NSG para testar de fora.
     - Troque `/api*` por `/api` (pathType `Exact`) e compare `curl .../api` com `curl .../api/users`.
-    - Apague o `ingressClassName` e veja o Ingress parar de funcionar. Depois marque a IngressClass como padrão e veja voltar.
+    - Crie um Ingress sem `ingressClassName` e veja o 404. Depois marque a IngressClass como padrão: o Ingress antigo **continua** sem classe; só os criados depois ganham `nginx` sozinhos. Confira com `kubectl get ingress -o custom-columns=NOME:.metadata.name,CLASSE:.spec.ingressClassName`.
     - Escale `api-svc` para 0 réplicas e observe o 503 do controller. Compare com o 404 de um host que não existe.
     - Crie um certificado autoassinado (`openssl req -x509 -nodes -newkey rsa:2048 -subj "/CN=shop.example.com" -keyout tls.key -out tls.crt`), monte o Secret e ative o TLS.

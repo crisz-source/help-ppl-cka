@@ -257,7 +257,7 @@ def kubeadm_join() -> Pagina:
     p.fronteira(700, 90, 460, 560, "Nó novo", "k8s", tracejada=False, icone="node")
     join = p.CMD(930, 165, 420, 76, "kubeadm join &lt;cp&gt;:6443<br>--token abcdef.0123...<br>"
                                    "--discovery-token-ca-cert-hash sha256:...")
-    pre = p.B(930, 285, 400, 56, "1. preflight<br>portas, arquivos, kubelet, swap")
+    pre = p.B(930, 285, 400, 56, "1. preflight<br>portas, arquivos, kubelet, swap, ip_forward")
     desc = p.B(930, 385, 400, 56, "2. descoberta<br>confere o token e o hash da CA")
     boot = p.B(930, 485, 400, 56, "3. TLS bootstrap<br>o kubelet envia um CSR")
     ok = p.B(930, 590, 400, 56, "kubelet.conf gravado → nó Ready", "ok")

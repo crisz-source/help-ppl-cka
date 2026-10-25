@@ -16,3 +16,5 @@ Abrir com a extensão Excalidraw do VS Code. Cada diagrama tem um script gerador
 | `11-diagramas-drawio.excalidraw` | `python gerar_11_diagramas_drawio.py 11-diagramas-drawio.excalidraw` | Do .drawio ao SVG em docs/assets e às duas versões do site |
 | `12-kubeadm-join.excalidraw` | `python gerar_12_kubeadm_join.py 12-kubeadm-join.excalidraw` | kubeadm join: o comando gerado no control plane, a descoberta pelo cluster-info, o CSR do kubelet e os dois erros clássicos |
 | `13-trilhas.excalidraw` | `python gerar_13_trilhas.py 13-trilhas.excalidraw` | Um site, três caminhos: a home com as trilhas, as páginas com blocos recolhíveis e o laboratório kind por trás de cada saída |
+| `14-validacao-1.37.excalidraw` | `python gerar_14_validacao_137.py 14-validacao-1.37.excalidraw` | Validação v1.37: o lab sobe pela página de upgrade, cada comando é rodado e a saída real substitui o texto; afirmações erradas vindas do kind são corrigidas |
+| `15-layouts-v3.excalidraw` | `python gerar_15_layouts_v3.py 15-layouts-v3.excalidraw` | Um conteúdo, três portas: docs/ alimenta o clássico, o v2 e a landing v3 (Figma), que aponta para o v2; a seção do autor |

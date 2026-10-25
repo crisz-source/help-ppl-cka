@@ -1,6 +1,6 @@
 # Revisão rápida
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-25 · Trilha para quem já estudou e quer revisar antes da prova
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · Trilha para quem já estudou e quer revisar antes da prova
 
 **Já conhece Kubernetes?** Revise os comandos e as pegadinhas mais importantes numa sequência curta, organizada pelo peso de cada domínio na prova. Cada cartão tem o que lembrar, um comando-chave e a pegadinha que mais derruba. O detalhe e os testes estão na página completa de cada tópico.
 
@@ -22,7 +22,7 @@ Para os comandos que valem em qualquer questão (contexto, `explain`, jsonpath, 
 
 [Página completa](../05-troubleshooting/pods.md)
 
-**Lembre:** `describe` primeiro, `logs` depois. `0/1 Running` com 0 restarts é readiness falhando; muitos restarts com `Running` é liveness matando o container.
+**Lembre:** `describe` primeiro, `logs` depois. `0/1 Running` com 0 restarts é readiness falhando; restarts subindo e o `STATUS` alternando com `CrashLoopBackOff`, com evento `failed liveness probe`, é liveness matando o container.
 
 **Comando-chave:** `kubectl describe pod <nome>` (seção Events) e `kubectl logs <nome> --previous`
 
@@ -88,7 +88,7 @@ Para os comandos que valem em qualquer questão (contexto, `explain`, jsonpath, 
 
 **Comando-chave:** `kubeadm certs check-expiration` e `kubeadm certs renew all`
 
-**Pegadinha:** renovar e não reiniciar. O apiserver continua servindo o certificado antigo até os static Pods serem recriados.
+**Pegadinha:** renovar e não reiniciar. Na v1.37 o apiserver e o etcd trocam o certificado de servidor sozinhos, mas o scheduler e o controller-manager seguem com o certificado de cliente antigo. Reinicie os static Pods.
 
 ### Drain, cordon e uncordon
 
@@ -108,7 +108,7 @@ Para os comandos que valem em qualquer questão (contexto, `explain`, jsonpath, 
 
 **Comando-chave:** `etcdutl snapshot restore /opt/snap.db --data-dir /var/lib/etcd-restore`
 
-**Pegadinha:** no etcd 3.6+, `etcdctl snapshot restore` responde `unknown flag: --data-dir`. Não é flag errada: o subcomando passou para o `etcdutl`.
+**Pegadinha:** no etcd 3.6+, `etcdctl snapshot restore` responde `unknown flag: --data-dir`. Não é flag errada: o subcomando passou para o `etcdutl`. E depois do restore, reinicie kube-proxy e kubelets: no lab, o kube-proxy perdeu a regra do Service `kubernetes` e a rede dos Pods quebrou.
 
 ### Helm e Kustomize
 
@@ -116,9 +116,9 @@ Para os comandos que valem em qualquer questão (contexto, `explain`, jsonpath, 
 
 **Lembre:** `helm install <release> <chart>`, nessa ordem. Kustomize se aplica com `-k`, nunca com `-f`.
 
-**Comando-chave:** `helm install web bitnami/nginx -n web --create-namespace` e `kubectl apply -k overlays/prod`
+**Comando-chave:** `helm install metrics metrics-server/metrics-server -n observability --create-namespace --set replicas=2` e `kubectl apply -k overlays/prod`
 
-**Pegadinha:** `--set` com chave inexistente é ignorado em silêncio. Confira o nome com `helm show values`.
+**Pegadinha:** `--set` com chave inexistente é ignorado em silêncio. Confira o nome com `helm show values`. E `helm upgrade` sem `--reuse-values` volta aos valores padrão do chart o que você não repetir.
 
 ## 3. Services & Networking (20%)
 

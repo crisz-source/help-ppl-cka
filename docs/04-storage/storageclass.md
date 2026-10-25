@@ -1,6 +1,6 @@
 # StorageClass e provisionamento dinâmico
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Storage (10%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Storage (10%)
 
 ## O que é
 
@@ -96,7 +96,7 @@ provisioner: kubernetes.io/no-provisioner   # não cria nada: os PVs são feitos
 volumeBindingMode: WaitForFirstConsumer
 ```
 
-Para treinar provisionamento dinâmico num lab kubeadm (que não vem com provisionador), o mais comum é o **local-path-provisioner** do Rancher, que cria um diretório no nó para cada PVC. <!-- VERIFICAR: versão atual e URL do manifesto em https://github.com/rancher/local-path-provisioner -->
+Para treinar provisionamento dinâmico num lab kubeadm (que não vem com provisionador), o mais comum é o **local-path-provisioner** do Rancher, que cria um diretório no nó para cada PVC (em `/opt/local-path-provisioner`). O lab usou a v0.0.37, instalada com o manifesto `https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.37/deploy/local-path-storage.yaml`, que cria a classe `local-path` (`WaitForFirstConsumer`, `Delete`, sem expansão). Um PVC de `300Mi` nessa classe gerou um PV de exatamente `300Mi`.
 
 ## Na documentação oficial
 
@@ -114,11 +114,11 @@ Para treinar provisionamento dinâmico num lab kubeadm (que não vem com provisi
 
 - **PVC `Pending` com `WaitForFirstConsumer` não é erro.** O evento diz `waiting for first consumer to be created before binding`. Crie o Pod e o PVC liga.
 - **"Sem `storageClassName`" ≠ `storageClassName: ""`.** O primeiro pega a classe padrão; o segundo recusa qualquer classe.
-- **Duas classes padrão** ao mesmo tempo: o Kubernetes usa a mais nova, mas é configuração errada. Ao trocar a padrão, tire a anotação da antiga.
+- **Duas classes padrão** ao mesmo tempo: o Kubernetes usa a mais nova, mas é configuração errada. Ao trocar a padrão, tire a anotação da antiga. Cuidado: o `kubectl get sc` marca `(default)` **só na mais nova**, então ele esconde o problema. No teste, as duas tinham `is-default-class: "true"` e só uma aparecia como `(default)`. Confira a anotação com `kubectl get sc <nome> -o jsonpath='{.metadata.annotations}'`.
 - **O `reclaimPolicy` padrão da StorageClass é `Delete`**: apagar o PVC apaga o disco e os dados. Se a questão pede preservar dados, use `Retain` na classe ou mude o PV depois (ver [reclaimPolicy](reclaim-policy.md)).
-- **StorageClass é imutável.** `kubectl edit` em `parameters` ou `reclaimPolicy` é recusado. Apague e recrie com o mesmo nome; PVs já criados não mudam.
+- **StorageClass é imutável.** `kubectl edit` em `parameters` ou `reclaimPolicy` é recusado (`reclaimPolicy: Invalid value: null: field is immutable`). Apague e recrie com o mesmo nome; PVs já criados não mudam.
 - **O nome da classe é o que liga tudo.** Questão diz "use a classe `fast`"? Confira o nome exato em `kubectl get sc` antes.
-- **Sem provisionador, a StorageClass não cria nada.** Um PVC de uma classe cujo provisionador não está instalado fica `Pending` com `waiting for a volume to be created, either by external provisioner "..."`.
+- **Sem provisionador, a StorageClass não cria nada.** Um PVC de uma classe cujo provisionador não está instalado fica `Pending`. Evento real: `ExternalProvisioning ... Waiting for a volume to be created either by the external provisioner 'exemplo.com/nao-existe' or manually by the system administrator`.
 
 ## Pratique
 
@@ -164,20 +164,23 @@ kubectl get pvc data -n sc-lab -o jsonpath='{.spec.storageClassName}{"\n"}'
 kubectl describe pvc data -n sc-lab | grep -A3 Events
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1; o lab também tinha a classe `local-path`, sem a anotação de padrão):
 
 ```console
 $ kubectl get sc
 NAME                   PROVISIONER                    RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
-local-wait (default)   kubernetes.io/no-provisioner   Delete          WaitForFirstConsumer   false                  10s
+local-path             rancher.io/local-path          Delete          WaitForFirstConsumer   false                  66m
+local-wait (default)   kubernetes.io/no-provisioner   Delete          WaitForFirstConsumer   false                  31s
 $ kubectl get pvc data -n sc-lab -o jsonpath='{.spec.storageClassName}{"\n"}'
 local-wait
 $ kubectl describe pvc data -n sc-lab | grep -A3 Events
 Events:
-  Type    Reason                Age   From                         Message
-  ----    ------                ----  ----                         -------
-  Normal  WaitForFirstConsumer  5s    persistentvolume-controller  waiting for first consumer to be created before binding
+  Type    Reason                Age               From                         Message
+  ----    ------                ----              ----                         -------
+  Normal  WaitForFirstConsumer  2s (x3 over 31s)  persistentvolume-controller  waiting for first consumer to be created before binding
 ```
+
+Um PVC sem classe criado **antes** da `local-wait` existir recebeu `local-wait` sozinho, segundos depois de a classe padrão ser criada.
 
 ??? tip "No lab / Killercoda"
 

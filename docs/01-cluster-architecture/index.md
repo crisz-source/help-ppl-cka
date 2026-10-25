@@ -12,7 +12,7 @@ Um quarto da prova. É o domínio de quem **opera** o cluster: quem pode fazer o
 | *(fora da lista explícita atual, ver aviso na página)* | [Backup e restore do etcd](etcd-backup-restore.md) |
 | Create and manage Kubernetes clusters using kubeadm | [Adicionar um nó com kubeadm join](kubeadm-join.md), [Certificados com kubeadm](kubeadm-certs.md) |
 
-<!-- VERIFICAR: conferir a lista acima contra a versão atual do currículo em https://github.com/cncf/curriculum -->
+Itens conferidos com o currículo oficial `CKA_Curriculum_v1.37.pdf` (<https://github.com/cncf/curriculum>) em 2026-10-25.
 
 ## Ordem sugerida de estudo
 

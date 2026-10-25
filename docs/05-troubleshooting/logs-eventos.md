@@ -1,6 +1,6 @@
 # Logs e eventos: onde procurar o quê
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Troubleshooting (30%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Troubleshooting (30%)
 
 ## O que é
 
@@ -115,8 +115,9 @@ kubectl logs app-com-sidecar -c log-sidecar -f    # agora o log do arquivo apare
 
 ## Pegadinhas da prova
 
-- **Pod que nunca rodou não tem log.** `Pending`, `ImagePullBackOff`, `CreateContainerConfigError`: a resposta está nos **Events**.
-- **Pod com vários containers**: sem `-c`, o `kubectl logs` usa o container padrão (anotação `kubectl.kubernetes.io/default-container`) ou o primeiro, e avisa. Leia o aviso: pode não ser o container que a questão pede.
+- **Pod que nunca rodou não tem log.** `Pending`, `ImagePullBackOff`, `CreateContainerConfigError`: a resposta está nos **Events**. O `kubectl logs` responde `Error from server (BadRequest): container "quebrado" in pod "quebrado" is waiting to start: image can't be pulled`.
+- **Pod com vários containers**: sem `-c`, o `kubectl logs` usa o container padrão (anotação `kubectl.kubernetes.io/default-container`) ou o primeiro, e avisa: `Defaulted container "app" out of: app, log-sidecar (init)`. Leia o aviso: pode não ser o container que a questão pede.
+- **`grep` pega mais do que parece.** "Linhas com o número 5" num log com data: o `grep 5` também casa com o `5` de `Oct 25` e dos segundos. No teste, pegou 20 de 22 linhas. Filtre o campo certo (`awk '$1 ~ /5/'`) e confira o resultado antes de gravar.
 - **`--previous` só ajuda se o container já voltou a rodar.** Com o container morto esperando o backoff, o `kubectl logs` sem flag já mostra a execução que morreu, e o `--previous` pode responder `unable to retrieve container logs`. Detalhes em [Pods](pods.md).
 - **`kubectl get events` sem `--sort-by` não sai em ordem cronológica.** Use `--sort-by=.lastTimestamp`.
 - **Evento some depois de 1 hora.** Reproduza o problema (apague e recrie o Pod) para gerar os eventos de novo.
@@ -135,10 +136,12 @@ kubectl logs app-com-sidecar -c log-sidecar -f    # agora o log do arquivo apare
 ??? success "Solução"
     ```bash
     kubectl get pod app-com-sidecar -n logs-lab -o jsonpath='{.spec.containers[*].name} {.spec.initContainers[*].name}{"\n"}'
-    kubectl logs app-com-sidecar -n logs-lab -c log-sidecar | grep 5 > /opt/app-5.txt
+    kubectl logs app-com-sidecar -n logs-lab -c log-sidecar | awk '$1 ~ /5/' > /opt/app-5.txt
     kubectl get events -n logs-lab --field-selector type=Warning --sort-by=.lastTimestamp > /opt/warnings.txt
     ```
-    O container `app` não tem nada no stdout; quem expõe o arquivo é o sidecar. Sem sidecar, a alternativa seria `kubectl exec app-com-sidecar -n logs-lab -c app -- cat /var/log/app.log | grep 5`.
+    O container `app` não tem nada no stdout; quem expõe o arquivo é o sidecar. Sem sidecar, a alternativa seria `kubectl exec app-com-sidecar -n logs-lab -c app -- cat /var/log/app.log | awk '$1 ~ /5/'`.
+
+    Por que `awk` e não `grep 5`: cada linha é `<número> <data>`, e a data também tem o algarismo 5 (`Oct 25`, segundos `15`, `55`...). O `awk '$1 ~ /5/'` olha só o primeiro campo, o número.
 
 **Como verificar:**
 
@@ -148,20 +151,25 @@ kubectl logs app-com-sidecar -n logs-lab -c app | wc -l      # 0: o app não esc
 cat /opt/warnings.txt
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1, uns 45 segundos depois de o Pod subir):
 
 ```console
 $ head -3 /opt/app-5.txt
-5 Fri Oct 23 18:50:10 UTC 2026
-15 Fri Oct 23 18:50:30 UTC 2026
-25 Fri Oct 23 18:50:50 UTC 2026
+5 Sun Oct 25 09:11:18 UTC 2026
+15 Sun Oct 25 09:11:38 UTC 2026
 $ kubectl logs app-com-sidecar -n logs-lab -c app | wc -l
 0
+$ kubectl get events -n logs-lab --field-selector type=Warning --sort-by=.lastTimestamp
+LAST SEEN   TYPE      REASON   OBJECT         MESSAGE
+24s         Warning   Failed   pod/quebrado   Failed to pull image "nginx:naoexiste": rpc error: code = NotFound desc = failed to pull and unpack image "docker.io/library/nginx:naoexiste": failed to resolve image: docker.io/library/nginx:naoexiste: not found
+24s         Warning   Failed   pod/quebrado   Error: ErrImagePull
 ```
+
+(O Pod `quebrado`, com imagem inexistente, foi criado no namespace só para gerar eventos `Warning`.) Com `grep 5` no lugar do `awk`, o arquivo teria 20 das 22 linhas.
 
 ??? tip "No lab / Killercoda"
 
-    - No nó onde o Pod roda, ache o mesmo log em `/var/log/pods/logs-lab_app-com-sidecar_*/log-sidecar/0.log` e compare com o `kubectl logs`.
+    - No nó onde o Pod roda, ache o mesmo log em `/var/log/pods/logs-lab_app-com-sidecar_*/log-sidecar/0.log` e compare com o `kubectl logs`. O arquivo tem um prefixo por linha, que o `kubectl logs` e o `crictl logs` escondem: `2026-10-25T09:12:15.015648637Z stdout F 33 Sun Oct 25 09:12:14 UTC 2026`.
     - Use `crictl logs` com o ID do container do sidecar e confira que é o mesmo conteúdo.
     - Crie um Pod que falha e use `kubectl events --for pod/<nome> --watch` para ver os eventos chegando.
     - Instale o metrics-server e pratique `kubectl top pods --sort-by=memory -A`.

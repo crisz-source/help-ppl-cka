@@ -1,6 +1,6 @@
 # Gateway API
 
-> **Versão do Kubernetes:** v1.36 · **Versão da Gateway API:** v1.6.3 · **Última revisão:** 2026-10-23 · **Domínio:** Services & Networking (20%)
+> **Versão do Kubernetes:** v1.37 · **Versão da Gateway API:** v1.6.3 (canal standard) · **Controller nos testes:** Envoy Gateway v1.9.2 · **Última revisão:** 2026-10-25 · **Domínio:** Services & Networking (20%)
 
 ## O que é
 
@@ -17,7 +17,24 @@ Em vez de um objeto só, ela separa **papéis** em recursos diferentes:
 
 Também existem `GRPCRoute`, `TLSRoute`, `TCPRoute` e `UDPRoute`, além de `ListenerSet` e `BackendTLSPolicy`. Na v1.6.3 todos estão no canal **standard** (`v1`) e vêm no `standard-install.yaml`. Em versões antigas da Gateway API, `TLSRoute`, `TCPRoute` e `UDPRoute` só existiam no canal experimental (`v1alpha2`): confira o que o cluster serve com `kubectl api-resources --api-group=gateway.networking.k8s.io`.
 
-**Ela não vem com o Kubernetes.** Os recursos são **CRDs** instalados à parte (grupo `gateway.networking.k8s.io`), e também é preciso um **controller** que os implemente: Envoy Gateway, NGINX Gateway Fabric, Istio, Cilium, Traefik, Kong, Contour etc. Na prova, o ambiente já vem com os CRDs e um controller.
+**Ela não vem com o Kubernetes.** Os recursos são **CRDs** instalados à parte (grupo `gateway.networking.k8s.io`), e também é preciso um **controller** que os implemente: Envoy Gateway, NGINX Gateway Fabric, Istio, Cilium, Traefik, Kong, Contour etc. Na prova, o ambiente já vem com os CRDs e um controller. A documentação do projeto (<https://gateway-api.sigs.k8s.io>) está na lista de sites permitidos **da CKA**.
+
+O que o cluster do lab servia depois do `standard-install.yaml` v1.6.3 (saída real):
+
+```console
+$ kubectl api-resources --api-group=gateway.networking.k8s.io
+NAME                 SHORTNAMES   APIVERSION                     NAMESPACED   KIND
+backendtlspolicies   btlspolicy   gateway.networking.k8s.io/v1   true         BackendTLSPolicy
+gatewayclasses       gc           gateway.networking.k8s.io/v1   false        GatewayClass
+gateways             gtw          gateway.networking.k8s.io/v1   true         Gateway
+grpcroutes                        gateway.networking.k8s.io/v1   true         GRPCRoute
+httproutes                        gateway.networking.k8s.io/v1   true         HTTPRoute
+listenersets         lset         gateway.networking.k8s.io/v1   true         ListenerSet
+referencegrants      refgrant     gateway.networking.k8s.io/v1   true         ReferenceGrant
+tcproutes                         gateway.networking.k8s.io/v1   true         TCPRoute
+tlsroutes                         gateway.networking.k8s.io/v1   true         TLSRoute
+udproutes                         gateway.networking.k8s.io/v1   true         UDPRoute
+```
 
 ## Como funciona por dentro
 
@@ -248,13 +265,14 @@ Na v1.6.3 o `ReferenceGrant` é servido em `v1` e em `v1beta1` (material antigo 
 ## Pegadinhas da prova
 
 - **`gatewayClassName` certo:** confira com `kubectl get gatewayclass`. Não existe classe padrão automática como no Ingress.
-- **`parentRefs` com namespace:** se o Gateway está em outro namespace, sem `namespace:` a rota procura o Gateway no **próprio** namespace e não se liga.
+- **`parentRefs` com namespace:** se o Gateway está em outro namespace, sem `namespace:` a rota procura o Gateway no **próprio** namespace e não se liga. Nesse caso o status fica **vazio** (nenhum Gateway assume a rota, então ninguém escreve condição nenhuma). Status vazio é pista de `parentRefs` errado.
 - **`allowedRoutes` padrão é `Same`:** uma rota de outro namespace é recusada (`NotAllowedByListeners`) até o listener permitir com `All` ou `Selector`.
 - **Service em outro namespace** exige `ReferenceGrant` **no namespace do Service**. Sem ele: `ResolvedRefs=False`, motivo `RefNotPermitted`.
 - **Hostname incompatível:** se o listener tem `hostname: "*.exemplo.com"` e a rota usa `app.outro.com`, a rota não se liga (`NoMatchingListenerHostname`).
 - **`port` em `backendRefs` é obrigatório** para Service e é a porta **do Service**.
 - **`weight`** é proporcional, não porcentagem: 1 e 3 dão 25%/75%. Peso `0` = não recebe tráfego.
-- **Precedência:** vence o match mais específico, nesta ordem: path `Exact`, depois o prefixo mais longo, depois método, depois mais cabeçalhos, depois mais query params. Só em empate total contam a rota mais antiga e a ordem das regras. Consequência: uma regra `/api` (sem cabeçalho) ganha de uma regra `/` com cabeçalho, para uma requisição em `/api`.
+- **Precedência:** vence o match mais específico, nesta ordem: path `Exact`, depois o prefixo mais longo, depois método, depois mais cabeçalhos, depois mais query params. Só em empate total contam a rota mais antiga e a ordem das regras. Consequência: uma regra `/api` (sem cabeçalho) ganha de uma regra `/` com cabeçalho, para uma requisição em `/api`. No teste, `GET /api` com `env: canary` foi para o backend da regra `/api`; `GET /` com o mesmo cabeçalho foi para o da regra `/`.
+- **Gateway sem endereço num cluster kubeadm.** O controller cria o proxy com um Service `LoadBalancer`, que fica `<pending>` sem cloud controller. O Gateway fica `PROGRAMMED False` e sem `ADDRESS`, mesmo com as rotas funcionando. Teste pelo NodePort desse Service. No Envoy Gateway, ele vem com `externalTrafficPolicy: Local`: só responde pelos nós onde roda um Pod do proxy (ver [Services e Endpoints](services-endpoints.md)).
 - **Sempre olhe o status** (`kubectl describe`). Rota criada sem erro não significa rota funcionando.
 - **Migrar Ingress → HTTPRoute:** `pathType: Prefix` vira `type: PathPrefix`; `ingressClassName` vira `parentRefs` para um Gateway; anotações de rewrite e redirect viram `filters`. A ferramenta `ingress2gateway` faz a conversão, mas na prova é à mão.
 
@@ -306,13 +324,39 @@ kubectl get gateway web-gw -n infra                    # ADDRESS e PROGRAMMED=Tr
 kubectl describe gateway web-gw -n infra | grep -i "attached routes"
 
 GW=$(kubectl get gateway web-gw -n infra -o jsonpath='{.status.addresses[0].value}')
-for i in $(seq 1 20); do curl -s -H "Host: shop.example.com" http://$GW/; done | sort | uniq -c   # ~16 x ~4
-curl -s -H "Host: shop.example.com" -H "x-version: v2" http://$GW/                               # sempre v2
+for i in $(seq 1 20); do curl -s -m 3 -H "Host: shop.example.com" http://$GW/; done | sort | uniq -c   # ~16 x ~4
+curl -s -m 3 -H "Host: shop.example.com" -H "x-version: v2" http://$GW/                               # sempre v2
 ```
+
+Num lab kubeadm o `$GW` sai vazio (ver a pegadinha do Gateway sem endereço). Use o NodePort do proxy num nó que tenha o Pod dele:
+
+```bash
+kubectl -n envoy-gateway-system get svc,pods -o wide | grep web-gw    # NodePort e nó do proxy
+curl -s -m 3 -H "Host: shop.example.com" http://<IP-do-nó-com-o-proxy>:<nodePort>/
+```
+
+Resultado real da solução (v1.37.1, Envoy Gateway v1.9.2, backends `agnhost` respondendo o próprio nome em `/hostname`):
+
+```console
+$ kubectl describe httproute shop-route -n shop | sed -n '/Parents:/,$p' | grep -E 'Reason|Status|Type' | sed 's/^ *//'
+Reason:                Accepted
+Status:                True
+Type:                  Accepted
+Reason:                ResolvedRefs
+Status:                True
+Type:                  ResolvedRefs
+$ for i in $(seq 1 100); do curl -s -m 3 -H "Host: shop.example.com" http://10.0.1.6:32698/hostname; echo; done | sed -E 's/-[a-z0-9]+-[a-z0-9]+$//' | sort | uniq -c
+     80 shop-v1
+     20 shop-v2
+$ for i in $(seq 1 10); do curl -s -m 3 -H "Host: shop.example.com" -H "x-version: v2" http://10.0.1.6:32698/hostname; echo; done | sed -E 's/-[a-z0-9]+-[a-z0-9]+$//' | sort | uniq -c
+     10 shop-v2
+```
+
+Os outros status, como aparecem na prática: `allowedRoutes: Same` → `Accepted=False (NotAllowedByListeners)`; Service em outro namespace sem `ReferenceGrant` → `ResolvedRefs=False (RefNotPermitted)` (com o `ReferenceGrant`, `True` e resposta 200); listener com `hostname: "*.exemplo.com"` e rota `shop.example.com` → `Accepted=False (NoMatchingListenerHostname)`.
 
 ??? tip "No lab / Killercoda"
 
-    - No lab kubeadm, instale os CRDs (`standard-install.yaml`) e um controller (ex.: Envoy Gateway ou NGINX Gateway Fabric) seguindo o quickstart dele. Sem cloud controller, o Service do proxy fica `<pending>`: use o NodePort dele.
+    - No lab kubeadm, instale os CRDs (`standard-install.yaml`) e um controller (ex.: Envoy Gateway ou NGINX Gateway Fabric) seguindo o quickstart dele. Sem cloud controller, o Service do proxy fica `<pending>`: use o NodePort dele. Atenção: o `install.yaml` do Envoy Gateway v1.9.2 traz os **próprios** CRDs da Gateway API (v1.6.1, canal experimental) e sobrescreve os que você instalou. Confira com `kubectl get crd gateways.gateway.networking.k8s.io -o jsonpath='{.metadata.annotations}'` (procure `bundle-version` e `channel`).
     - Mude o `allowedRoutes` do listener para `Same` e veja o status da rota passar a `Accepted=False`.
     - Aponte um `backendRef` para um Service em outro namespace, veja `RefNotPermitted` e corrija com `ReferenceGrant`.
     - Pegue um Ingress da [página de Ingress](ingress.md) e reescreva como Gateway + HTTPRoute.

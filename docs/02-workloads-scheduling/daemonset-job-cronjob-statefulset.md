@@ -1,6 +1,6 @@
 # DaemonSet, Job, CronJob e StatefulSet
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Workloads & Scheduling (15%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Workloads & Scheduling (15%)
 
 ## O que é
 
@@ -243,14 +243,15 @@ spec:
 
 - **Não existe `kubectl create daemonset` nem `statefulset`.** DaemonSet: gere um Deployment com `--dry-run=client -o yaml`, troque o `kind` e apague `replicas`, `strategy` e `status`. StatefulSet: copie da documentação.
 - **DaemonSet "não roda no control plane"**: falta a toleration do taint `node-role.kubernetes.io/control-plane:NoSchedule`. O `DESIRED` do DaemonSet conta só os nós elegíveis.
-- **Job com `restartPolicy: Always` é recusado.** O `kubectl create job` já põe `Never`.
+- **Job com `restartPolicy: Always` é recusado** (`spec.template.spec.restartPolicy: Required value: valid values: "OnFailure", "Never"`). O `kubectl create job` já põe `Never`.
+- **`backoffLimit` conta as novas tentativas.** Com `backoffLimit: 2` e `restartPolicy: Never`, um comando que sempre falha gerou **3** Pods (o primeiro + 2 tentativas), e o Job terminou com `Failed: BackoffLimitExceeded - Job has reached the specified backoff limit`.
 - **`OnFailure` × `Never`:** com `OnFailure` o mesmo Pod reinicia (os logs da tentativa anterior somem); com `Never` cada falha vira um Pod novo, todos visíveis em `kubectl get pods`.
 - **`jobTemplate.spec.template.spec`**: o CronJob tem três níveis de `spec`. Erro de indentação aqui é comum.
-- **Testar um CronJob sem esperar**: `kubectl create job <nome> --from=cronjob/<cronjob>`.
+- **Testar um CronJob sem esperar**: `kubectl create job <nome> --from=cronjob/<cronjob>`. Esse Job pertence ao CronJob: apagar o CronJob apaga o Job junto.
 - **`schedule` usa o fuso do kube-controller-manager** (normalmente UTC) se não houver `timeZone`.
 - **StatefulSet sem o Service headless** sobe, mas o DNS por Pod (`db-0.db`) não resolve. O `serviceName` precisa casar com o nome do Service.
-- **PVC do StatefulSet `Pending`**: falta StorageClass padrão (ou PV compatível). O evento do PVC diz `no persistent volumes available for this claim and no storage class is set`. O `-0` fica `Pending` e, por causa da ordem, o `-1` nem é criado.
-- **Spec do StatefulSet quase toda imutável.** Só dá para mudar `replicas`, `template`, `updateStrategy`, `revisionHistoryLimit`, `persistentVolumeClaimRetentionPolicy`, `minReadySeconds` e `ordinals`. Acrescentar `volumeClaimTemplates` ou trocar `serviceName` exige apagar e recriar (`kubectl delete sts db --cascade=orphan` mantém os Pods enquanto isso).
+- **PVC do StatefulSet `Pending`**: falta StorageClass padrão (ou PV compatível). O evento do PVC diz `no persistent volumes available for this claim and no storage class is set`. O `-0` fica `Pending` e, por causa da ordem, o `-1` nem é criado: no lab, só existiam `db-0` e `data-db-0`.
+- **Spec do StatefulSet quase toda imutável.** Só dá para mudar `replicas`, `template`, `updateStrategy`, `revisionHistoryLimit`, `persistentVolumeClaimRetentionPolicy`, `minReadySeconds` e `ordinals`. Trocar `serviceName` dá `spec.serviceName: Invalid value: "outro": field is immutable`. Para isso, ou para acrescentar `volumeClaimTemplates`, apague e recrie (`kubectl delete sts db --cascade=orphan` mantém os Pods enquanto isso).
 - **Apagar o StatefulSet não apaga os PVCs.** Apague-os à parte se o enunciado pedir limpeza.
 
 ## Pratique
@@ -310,20 +311,22 @@ kubectl get job cleanup-now
 kubectl logs job/cleanup-now
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1, 1 control plane + 2 workers):
 
 ```console
 $ kubectl get ds node-logger
 NAME          DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
-node-logger   3         3         3       3            3           <none>          25s
+node-logger   3         3         3       3            3           <none>          4s
 $ kubectl get cj cleanup -o jsonpath='{.spec.concurrencyPolicy} {.spec.successfulJobsHistoryLimit}{"\n"}'
 Forbid 2
 $ kubectl get job cleanup-now
 NAME          STATUS     COMPLETIONS   DURATION   AGE
-cleanup-now   Complete   1/1           4s         10s
+cleanup-now   Complete   1/1           4s         4s
 $ kubectl logs job/cleanup-now
 cleanup
 ```
+
+Sem a toleration, o mesmo DaemonSet mostrou `DESIRED 2`: o control plane ficou de fora.
 
 ??? tip "No lab / Killercoda"
 

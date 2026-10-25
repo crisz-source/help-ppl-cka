@@ -1,6 +1,6 @@
 # ResourceQuota
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Workloads & Scheduling (15%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Workloads & Scheduling (15%)
 
 ## O que é
 
@@ -119,10 +119,10 @@ Outros escopos (`scopes`): `BestEffort`, `NotBestEffort`, `Terminating`, `NotTer
 ## Pegadinhas da prova
 
 - **Deployment `0/N` sem erro no `kubectl apply`**: o ReplicaSet foi barrado pela quota. A mensagem está em `kubectl describe rs` (`exceeded quota` ou `must specify limits.cpu...`), não no Deployment.
-- **Quota de CPU/memória obriga os Pods a declararem esses valores.** Sem LimitRange, um `kubectl run` sem `resources` é recusado com `failed quota: ... must specify ...`.
-- **Quota nova não mexe no que já existe.** Ela só barra criações a partir dali.
-- **`cpu: "2"` entre aspas** no YAML evita que vire número. A API aceita os dois, mas `--hard` na linha de comando não aceita espaços entre os itens.
-- **`count/deployments.apps`**, com o grupo. `count/deployments` não conta nada.
+- **Quota de CPU/memória obriga os Pods a declararem esses valores.** Sem LimitRange, um `kubectl run` sem `resources` é recusado. Saída real: `pods "x" is forbidden: failed quota: cota-dev: must specify limits.cpu for: x; limits.memory for: x; requests.cpu for: x; requests.memory for: x`.
+- **Quota nova não mexe no que já existe.** Ela só barra criações a partir dali. No teste, uma quota `pods=3` criada com 5 Pods rodando mostrou `Used 5 / Hard 3`, sem remover nenhum, e recusou o sexto.
+- **`cpu: "2"` entre aspas** no YAML evita que vire número. A API aceita os dois, mas `--hard` na linha de comando não aceita espaços entre os itens: `--hard="pods=1, services=2"` dá `spec.hard[ services]: Invalid value: " services"`.
+- **`count/deployments.apps`**, com o grupo. `count/deployments` é aceito, mas não conta nada: com 2 Deployments criados, o uso continuou `0`.
 - **Quota é por namespace.** Criou no `default` por engano? Ela não vale para `dev`.
 - **A quota conta Pods criados, não Pods prontos.** Um Pod `Pending` por falta de CPU no nó (`Insufficient cpu`) já ocupa a vaga dele na quota. Se `READY` está abaixo do esperado e `describe quota` mostra o limite cheio, olhe também os eventos dos Pods.
 - **Escalar acima da quota**: `kubectl scale --replicas=10` é aceito no Deployment, mas o ReplicaSet só consegue criar até o limite. `READY` fica parado em, por exemplo, `3/10`.
@@ -170,12 +170,12 @@ kubectl describe quota cota -n team-a
 kubectl describe rs -n team-a -l app=api | grep -A4 Events
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1):
 
 ```console
 $ kubectl get deploy api -n team-a
 NAME   READY   UP-TO-DATE   AVAILABLE   AGE
-api    4/5     4            4           30s
+api    4/5     4            4           20s
 $ kubectl describe quota cota -n team-a
 Name:            cota
 Namespace:       team-a
@@ -184,9 +184,11 @@ Resource         Used  Hard
 limits.memory    1Gi   1Gi
 pods             4     4
 requests.cpu     400m  1
-$ kubectl describe rs -n team-a -l app=api | grep -A4 Events
-  Warning  FailedCreate      10s   replicaset-controller  Error creating: pods "api-7c9d8b6f5-x2k4j" is forbidden: exceeded quota: cota, requested: limits.memory=256Mi,pods=1, used: limits.memory=1Gi,pods=4, limited: limits.memory=1Gi,pods=4
+$ kubectl get events -n team-a --field-selector reason=FailedCreate
+... Error creating: pods "api-7c5b468964-7zmcn" is forbidden: exceeded quota: cota, requested: limits.memory=256Mi,pods=1, used: limits.memory=1Gi,pods=4, limited: limits.memory=1Gi,pods=4
 ```
+
+O `kubectl describe rs -n team-a -l app=api` também mostra esse evento, mas no meio dos `SuccessfulCreate`. O `--field-selector reason=FailedCreate` vai direto ao ponto. Escalando para 10, o `READY` parou em `4/10`.
 
 ??? tip "No lab / Killercoda"
 

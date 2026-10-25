@@ -1,0 +1,75 @@
+/* Blocos ```console (comando com "$ " + saída) com cara de terminal: fundo escuro nos dois temas,
+   barra de janela, prompt verde, comando claro e saída um tom abaixo. Os blocos ```bash (só comandos,
+   para copiar) continuam como estão. O Pygments marca o prompt com .gp e a saída com .go; é por eles
+   que o bloco é reconhecido, porque o MkDocs não põe a linguagem na div. */
+
+.md-typeset .highlight:has(.gp, .go) {
+  --term-fundo: #0d1117;
+  --term-barra: #161b22;
+  --term-borda: #30363d;
+  --term-texto: #e6edf3;
+  --term-saida: #b1bac4;
+  --term-prompt: #3fb950;
+  margin: 1em 0;
+  border: 1px solid var(--term-borda);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--term-fundo);
+}
+
+/* barra da janela: três bolinhas e o título */
+.md-typeset .highlight:has(.gp, .go)::before {
+  content: "terminal";
+  display: block;
+  padding: 0.35rem 0 0.35rem 4.2rem;
+  border-bottom: 1px solid var(--term-borda);
+  background:
+    radial-gradient(circle at 0.95rem 50%, #ff5f57 0.3rem, transparent 0.32rem),
+    radial-gradient(circle at 1.75rem 50%, #febc2e 0.3rem, transparent 0.32rem),
+    radial-gradient(circle at 2.55rem 50%, #28c840 0.3rem, transparent 0.32rem),
+    var(--term-barra);
+  color: #8b949e;
+  font-family: var(--md-code-font-family);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.md-typeset .highlight:has(.gp, .go) pre,
+.md-typeset .highlight:has(.gp, .go) pre > code {
+  margin: 0;
+  background: var(--term-fundo);
+  color: var(--term-texto);
+}
+
+.md-typeset .highlight:has(.gp, .go) .gp {
+  color: var(--term-prompt);
+  font-weight: 700;
+  user-select: none; /* copiar a linha não leva o "$ " junto */
+}
+
+.md-typeset .highlight:has(.gp, .go) .go {
+  color: var(--term-saida);
+}
+
+/* tokens do comando (flags, aspas, pipes): cores de terminal escuro, não as do tema claro */
+.md-typeset .highlight:has(.gp, .go) :is(.w, .p, .o, .nv, .nb, .k, .s1, .s2, .se, .m, .mi, .nt, .na) {
+  color: var(--term-texto);
+}
+.md-typeset .highlight:has(.gp, .go) :is(.s1, .s2, .se) {
+  color: #a5d6ff;
+}
+.md-typeset .highlight:has(.gp, .go) .c1 {
+  color: #8b949e;
+}
+
+/* o botão de copiar fica sobre a primeira linha: discreto até o mouse ou o foco chegar nele */
+.md-typeset .highlight:has(.gp, .go) .md-clipboard {
+  color: #8b949e;
+  opacity: 0.45;
+}
+.md-typeset .highlight:has(.gp, .go) .md-clipboard:is(:hover, :focus) {
+  opacity: 1;
+}
+.md-typeset .highlight:has(.gp, .go) .md-clipboard:is(:hover, :focus) {
+  color: var(--term-texto);
+}

@@ -4,7 +4,7 @@
 
 Você já conhece Linux e containers? [Comece pelo Domínio 1](01-cluster-architecture/index.md) e avance pelos 29 tópicos em ordem.
 
-Currículo conferido em **outubro de 2026** · Kubernetes nos laboratórios: **v1.36**
+Currículo conferido em **outubro de 2026** (CKA v1.37) · Kubernetes nos laboratórios: **v1.37**
 
 ## Escolha uma trilha
 
@@ -30,9 +30,20 @@ Currículo conferido em **outubro de 2026** · Kubernetes nos laboratórios: **v
 
 </div>
 
+## Quem escreve e por que confiar
+
+Sou o **Cristhian** e trabalho como **DevOps**. Este site é a minha preparação para a CKA feita em público: escrevo cada página enquanto estudo e organizo o material para ajudar quem está no mesmo caminho.
+
+O que dá para conferir:
+
+- **Saídas reais.** Todo bloco de saída foi copiado do terminal de um cluster kubeadm **v1.37.1** (1 control plane + 2 workers). Quando uma linha é cortada, a página avisa.
+- **Erros reais.** As pegadinhas foram provocadas no lab, com a mensagem de erro que o Kubernetes devolve. Na revalidação para v1.37, oito afirmações que vinham de testes em kind se mostraram diferentes numa VM e foram corrigidas.
+- **Fonte oficial.** Cada página aponta onde o assunto está em kubernetes.io/docs, a documentação permitida na prova, e o conteúdo segue o [currículo oficial da CNCF](https://github.com/cncf/curriculum).
+- **Código aberto.** Todo o texto está no [GitHub](https://github.com/crisz-source/help-ppl-cka). Achou algo errado? Abra uma issue.
+
 ## Para quem é
 
-Profissionais que já conhecem o básico de Linux e containers e querem passar na CKA. Este site documenta minha preparação e organiza o conteúdo para ajudar quem está no mesmo caminho. É gratuito e open source.
+Profissionais que já conhecem o básico de Linux e containers e querem passar na CKA. É gratuito e open source.
 
 ## Como o conteúdo está organizado
 
@@ -50,7 +61,7 @@ Toda página segue o mesmo formato: **o que é → como funciona por dentro → 
 
 ## Ambiente de prática
 
-- Lab próprio com **kubeadm**: 1 control plane + 2 workers em VMs Azure. Estudado em **v1.36**; no treino de upgrade, atualizado para **v1.37**.
+- Lab próprio com **kubeadm**: 1 control plane + 2 workers em VMs Azure (Ubuntu 24.04, containerd 2.2.1, Calico). Criado em **v1.36.5** e atualizado para **v1.37.1** seguindo a própria página de upgrade. Todas as páginas foram revalidadas nesse cluster em outubro de 2026.
 - [Killercoda](https://killercoda.com/) para cenários rápidos e descartáveis.
 
 !!! info "Versões"

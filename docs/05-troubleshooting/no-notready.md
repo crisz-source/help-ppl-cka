@@ -1,6 +1,6 @@
 # Nó NotReady: kubelet, containerd, certificados
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Troubleshooting (30%)
+> **Versão do Kubernetes:** v1.37 (containerd 2.2.1, Ubuntu 24.04) · **Última revisão:** 2026-10-25 · **Domínio:** Troubleshooting (30%)
 
 ## O que é
 
@@ -22,7 +22,8 @@ As causas mais cobradas, em ordem de frequência:
 | **containerd parado** | `Ready False`, `container runtime is down` | `systemctl status containerd`, `crictl ps` falha |
 | **CNI ausente ou quebrado** | `Ready False`, `NetworkPluginNotReady ... cni plugin not initialized` | Pods do CNI no nó, `/etc/cni/net.d/` vazio |
 | **Certificado do kubelet expirado/inválido** | `Unknown` | `journalctl -u kubelet` → `x509: certificate has expired` ou `Unauthorized` |
-| **Endereço do API server errado** em `kubelet.conf` | `Unknown` | `journalctl -u kubelet` → `connection refused` / `no such host` |
+| **Endereço do API server errado** em `kubelet.conf` | `Unknown` | `journalctl -u kubelet` → `connection refused` / `no such host`. O `systemctl status kubelet` mostra `active`: o processo roda, só não alcança o API server |
+| **Swap ligado** | `Unknown` | `systemctl status kubelet` → `activating (auto-restart)`; `journalctl` → `running with swap on is not supported, please disable swap or set --fail-swap-on flag to false` |
 | **Disco cheio** | `DiskPressure True` | `df -h /var/lib/kubelet /var/lib/containerd` |
 
 ## Como funciona por dentro
@@ -44,12 +45,15 @@ Quando o nó fica `Unknown`/`NotReady`, o node controller põe os taints `node.k
 
 Parar o kubelet ou o containerd **não para os containers que já rodam**: cada container é mantido por um processo `containerd-shim`, que continua vivo. O nó fica `NotReady`, mas a aplicação pode seguir atendendo até o `NoExecute` tirar os Pods de lá.
 
-O que se vê no lab (v1.36) em cada caso:
+O que se vê no lab (VMs Azure, v1.37.1) em cada caso:
 
 | Falha | `kubectl get nodes` | Condição `Ready` | Tempo até aparecer |
 |---|---|---|---|
-| kubelet parado | `NotReady` | `Unknown` · `NodeStatusUnknown` · `Kubelet stopped posting node status.` | ~50 s |
+| kubelet parado | `NotReady` | `Unknown` · `NodeStatusUnknown` · `Kubelet stopped posting node status.` | ~40 s |
 | containerd parado | `NotReady` | `False` · `KubeletNotReady` · `container runtime is down` | ~30 s |
+| porta do API server errada no `kubelet.conf` | `NotReady` | `Unknown` (o kubelet não consegue reportar) | já estava `NotReady` na primeira conferência, ~50 s depois |
+
+Com o kubelet parado, o nó recebeu os taints `node.kubernetes.io/unreachable:NoExecute` e `node.kubernetes.io/unreachable:NoSchedule`, e um nginx que rodava nele **continuou respondendo** pelo IP do Pod.
 
 ## Comandos essenciais
 
@@ -150,7 +154,8 @@ Veja também: [Certificados com kubeadm](../01-cluster-architecture/kubeadm-cert
 - **Mexeu em unidade ou drop-in do systemd?** `systemctl daemon-reload` antes do `restart`. Sem isso, a mudança é ignorada.
 - **O `journalctl -u kubelet` tem a resposta**, mas é verboso. Filtre: `| grep -iE 'error|fail'` e olhe as **últimas** linhas, que são da tentativa mais recente.
 - **Binário em caminho errado**: o drop-in pode apontar para `/usr/local/bin/kubelet` enquanto o binário está em `/usr/bin/kubelet`. `systemctl cat kubelet` mostra a linha `ExecStart`; `which kubelet` mostra onde ele está.
-- **`cgroupDriver` diferente** entre kubelet (`systemd`) e containerd (`SystemdCgroup = false`) faz Pods reiniciarem sem parar ou o kubelet falhar.
+- **`cgroupDriver` no `config.yaml` do kubelet já não decide sozinho.** Em versões recentes, o kubelet pergunta ao containerd e usa a resposta dele. No teste (v1.37.1, containerd 2.2.1), trocar para `cgroupDriver: cgroupfs` não quebrou nada, e o log explicou: `"Using cgroup driver setting received from the CRI runtime" cgroupDriver="systemd"`. O que manda é o `SystemdCgroup` em `/etc/containerd/config.toml`. Material antigo, em que o descompasso derrubava o nó, vale para versões em que o kubelet ainda não lia o driver do runtime.
+- **`systemctl status` diz `active`, mas o nó está `NotReady`?** O kubelet roda, mas não alcança o API server. Leia o `journalctl`: no teste com a porta errada, `dial tcp 10.0.1.4:6444: connect: connection refused`.
 - **Não confunda os certificados.** O do kubelet (cliente) fica em `/var/lib/kubelet/pki/` e é rotacionado sozinho; os do control plane ficam em `/etc/kubernetes/pki/` e são renovados com `kubeadm certs renew`.
 - **Depois de corrigir, espere.** O nó volta a `Ready` em alguns segundos; confira com `kubectl get nodes -w` antes de seguir.
 - **Saia do nó** (`exit` duas vezes) antes da próxima questão.
@@ -186,22 +191,38 @@ kubectl get nodes
 ssh w1 'systemctl is-enabled kubelet; systemctl is-active kubelet'
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1), com o kubelet do `w1` desabilitado:
 
 ```console
 $ kubectl get nodes
-NAME   STATUS     ROLES           AGE   VERSION
-cp     Ready      control-plane   6h    v1.36.5
-w1     NotReady   <none>          6h    v1.36.5
-w2     Ready      <none>          6h    v1.36.5
-$ kubectl describe node w1 | grep -A2 "Ready "
-  Ready            Unknown   Fri, 23 Oct 2026 18:40:12 +0000   Fri, 23 Oct 2026 18:41:01 +0000   NodeStatusUnknown   Kubelet stopped posting node status.
+NAME   STATUS     ROLES           AGE     VERSION
+cp     Ready      control-plane   3h51m   v1.37.1
+w1     NotReady   <none>          3h50m   v1.37.1
+w2     Ready      <none>          109m    v1.37.1
+$ kubectl describe node w1 | sed -n '/Conditions/,/Addresses/p'
+Conditions:
+  Type                 Status    LastHeartbeatTime                 LastTransitionTime                Reason              Message
+  ----                 ------    -----------------                 ------------------                ------              -------
+  NetworkUnavailable   False     Sun, 25 Oct 2026 07:18:32 +0000   Sun, 25 Oct 2026 07:18:32 +0000   CalicoIsUp          Calico is running on this node
+  MemoryPressure       Unknown   Sun, 25 Oct 2026 09:16:24 +0000   Sun, 25 Oct 2026 09:17:31 +0000   NodeStatusUnknown   Kubelet stopped posting node status.
+  DiskPressure         Unknown   Sun, 25 Oct 2026 09:16:24 +0000   Sun, 25 Oct 2026 09:17:31 +0000   NodeStatusUnknown   Kubelet stopped posting node status.
+  PIDPressure          Unknown   Sun, 25 Oct 2026 09:16:24 +0000   Sun, 25 Oct 2026 09:17:31 +0000   NodeStatusUnknown   Kubelet stopped posting node status.
+  Ready                Unknown   Sun, 25 Oct 2026 09:16:24 +0000   Sun, 25 Oct 2026 09:17:31 +0000   NodeStatusUnknown   Kubelet stopped posting node status.
+Addresses:
+$ ssh w1 'systemctl status kubelet --no-pager | head -4'
+○ kubelet.service - kubelet: The Kubernetes Node Agent
+     Loaded: loaded (/usr/lib/systemd/system/kubelet.service; disabled; preset: enabled)
+    Drop-In: /usr/lib/systemd/system/kubelet.service.d
+             └─10-kubeadm.conf
 ```
+
+Depois do `systemctl enable --now kubelet`, o nó voltou a `Ready` em segundos.
 
 ??? tip "No lab / Killercoda"
 
     - Pare o **containerd** em vez do kubelet (`systemctl stop containerd`) e compare as condições do nó com o caso do kubelet parado.
     - Edite `/etc/kubernetes/kubelet.conf` com uma porta errada (`:6444`), reinicie o kubelet e leia o `journalctl`. Desfaça depois.
-    - Mude o `cgroupDriver` em `/var/lib/kubelet/config.yaml` para `cgroupfs`, reinicie e leia o erro.
+    - Mude o `cgroupDriver` em `/var/lib/kubelet/config.yaml` para `cgroupfs`, reinicie e procure no `journalctl -u kubelet` a linha `Using cgroup driver setting received from the CRI runtime`: o kubelet ignora o valor do arquivo.
+    - Crie um swapfile (`fallocate -l 512M /swapteste && chmod 600 /swapteste && mkswap /swapteste && swapon /swapteste`), reinicie o kubelet, leia o erro e desfaça (`swapoff /swapteste && rm /swapteste`).
     - Confira a validade do certificado do kubelet com `openssl x509 ... -dates` e compare com `kubeadm certs check-expiration` no control plane.
     - Faça uma cópia de cada arquivo antes de editar (`cp arquivo arquivo.bak`), para voltar rápido.

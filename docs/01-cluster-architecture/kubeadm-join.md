@@ -1,6 +1,6 @@
 # Adicionar um nó com kubeadm join
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-25 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
 
 ## O que é
 
@@ -25,18 +25,18 @@ O comando tem três partes:
 
 O join tem três etapas no nó novo:
 
-1. **Preflight.** Confere portas, arquivos que não podem existir ainda, kubelet, swap e container runtime.
+1. **Preflight.** Confere portas, arquivos que não podem existir ainda, kubelet, swap, `ip_forward` e container runtime.
 2. **Descoberta.** O nó baixa o ConfigMap `cluster-info` do namespace `kube-public`, que é público. Ele traz a CA do cluster e uma assinatura feita com cada token válido. O nó confere duas coisas:
     - a assinatura do **token** existe, ou seja, o token vale;
     - o **hash** da CA bate com o `--discovery-token-ca-cert-hash`.
 3. **TLS bootstrap.** O kubelet usa o token para enviar um pedido de certificado (CSR). O kubeadm já deixa o cluster configurado para aprovar esse CSR sozinho. O kubelet recebe o certificado, grava o `/etc/kubernetes/kubelet.conf` e o nó aparece em `kubectl get nodes`.
 
-Testado num cluster kind v1.36.4. O CSR do worker aparece aprovado, pedido pelo usuário do token (`system:bootstrap:<id do token>`):
+Testado no lab (VMs Azure, Ubuntu 24.04, v1.37.1), tirando o worker `w2` do cluster e colocando de novo. O CSR do worker aparece aprovado, pedido pelo usuário do token (`system:bootstrap:<id do token>`):
 
 ```console
 $ kubectl get csr
-NAME        AGE   SIGNERNAME                                    REQUESTOR                        REQUESTEDDURATION   CONDITION
-csr-fcqh6   10s   kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:6223ak          <none>              Approved,Issued
+NAME        AGE   SIGNERNAME                                    REQUESTOR                 REQUESTEDDURATION   CONDITION
+csr-c8l46   1s    kubernetes.io/kube-apiserver-client-kubelet   system:bootstrap:a0vcex   <none>              Approved,Issued
 ```
 
 ## Comandos essenciais
@@ -69,20 +69,20 @@ systemctl enable --now kubelet
 kubectl get nodes
 ```
 
-Saída real do `--print-join-command` e do join (kind v1.36.4; o hash calculado com `openssl` deu o mesmo valor):
+Saída real do `--print-join-command` e do join no lab (o hash calculado com `openssl` deu o mesmo valor, `3fac0804...`):
 
 ```console
-$ kubeadm token create --print-join-command
-kubeadm join join-control-plane:6443 --token 6223ak.1ta2rae1rjkrzmeo --discovery-token-ca-cert-hash sha256:87e1c4a544b7c753826f23aeda7e3a909511724fa3b9c3f8fe242bef2bb19c0c
+$ sudo kubeadm token create --print-join-command
+kubeadm join 10.0.1.4:6443 --token a0vcex.5biobijwwrk8ptr5 --discovery-token-ca-cert-hash sha256:3fac0804502ef84779a0c8a9e9c2f76721adc56c70ebfd37d97f269ade22de9f
 ```
 
 ```console
-$ kubeadm join join-control-plane:6443 --token 6223ak.1ta2rae1rjkrzmeo --discovery-token-ca-cert-hash sha256:87e1c4a5...
+$ sudo kubeadm join 10.0.1.4:6443 --token a0vcex.5biobijwwrk8ptr5 --discovery-token-ca-cert-hash sha256:3fac0804502ef84779a0c8a9e9c2f76721adc56c70ebfd37d97f269ade22de9f
 [preflight] Running pre-flight checks
 [preflight] Reading configuration from the "kubeadm-config" ConfigMap in namespace "kube-system"...
 [kubelet-start] Writing kubelet configuration to file "/var/lib/kubelet/config.yaml"
 [kubelet-start] Starting the kubelet
-[kubelet-check] The kubelet is healthy after 500.886387ms
+[kubelet-check] The kubelet is healthy after 502.745022ms
 [kubelet-start] Waiting for the kubelet to perform the TLS Bootstrap
 
 This node has joined the cluster:
@@ -131,17 +131,26 @@ kubeadm reset -f
 
     Se o nó já aparece em `kubectl get nodes`, não há nada para fazer. Se é preciso refazer, rode `kubeadm reset -f` no nó antes.
 
-- **Token vencido ou apagado.** O join **não falha na hora**: fica tentando por **5 minutos** e só então desiste. Na prova isso parece travado. Gere outro comando com `--print-join-command`. Saída real depois dos 5 minutos:
+- **Token vencido ou apagado.** O join **não falha na hora**: fica tentando por **5 minutos** e só então desiste (no lab: das 07:22:52 às 07:27:52). Na prova isso parece travado. Gere outro comando com `--print-join-command`. Saída real depois dos 5 minutos:
 
     ```console
-    error: error execution phase preflight: couldn't validate the identity of the API Server: could not find a JWS signature in the cluster-info ConfigMap for token ID "6223ak"
+    error: error execution phase preflight: couldn't validate the identity of the API Server: could not find a JWS signature in the cluster-info ConfigMap for token ID "jqy6ud"
     ```
 
 - **Hash errado** (copiado pela metade, por exemplo). Esse falha na hora:
 
     ```console
-    error: error execution phase preflight: couldn't validate the identity of the API Server: cluster CA found in cluster-info ConfigMap is invalid: none of the public keys "sha256:87e1c4a5..." are pinned
+    error: error execution phase preflight: couldn't validate the identity of the API Server: cluster CA found in cluster-info ConfigMap is invalid: none of the public keys "sha256:3fac0804502ef84779a0c8a9e9c2f76721adc56c70ebfd37d97f269ade22de9f" are pinned
     ```
+
+- **`ip_forward` desligado no nó.** O preflight bloqueia. Saída real numa VM Ubuntu 24.04 (v1.37.1), com `sysctl -w net.ipv4.ip_forward=0`:
+
+    ```console
+    [preflight] Some fatal errors occurred:
+    	[ERROR FileContent--proc-sys-net-ipv4-ip_forward]: /proc/sys/net/ipv4/ip_forward contents are not set to 1
+    ```
+
+    Correção: `sysctl -w net.ipv4.ip_forward=1` (e, para valer depois do reboot, `net.ipv4.ip_forward = 1` num arquivo em `/etc/sysctl.d/`). Atenção a testes em cluster kind: lá os nós são containers, e o mesmo join passou com `ip_forward=0`. Em VM, como na prova, ele bloqueia.
 
 - **kubelet não habilitado.** O join funciona e o nó fica Ready, mas o kubelet não sobe sozinho depois de um reboot. O preflight avisa e segue em frente:
 
@@ -153,7 +162,6 @@ kubeadm reset -f
 
 - **Esquecer `sudo`.** `kubeadm join` precisa de root.
 - **Esquecer de voltar ao control plane para conferir.** No nó novo normalmente não há kubeconfig de admin, então o `kubectl get nodes` roda no control plane (ou na máquina de onde você opera o cluster).
-- **ip_forward não bloqueia o join na v1.36.** Muito material antigo diz que o preflight falha com `/proc/sys/net/ipv4/ip_forward` em 0. No teste com kubeadm v1.36.4, o join entrou normalmente com `ip_forward=0`, e a lista de verificações do preflight do join (vista com `--v=5`) não tem essa checagem. A documentação de *Container Runtimes* continua pedindo `net.ipv4.ip_forward = 1` na preparação do nó, porque a rede dos Pods depende disso.
 
 ## Pratique
 
@@ -189,7 +197,8 @@ Se o nó aparece mas fica `NotReady`, o problema já não é o join: veja [Nó N
 
 ??? tip "No lab / Killercoda"
 
-    - Num cluster kind com um worker (`kind create cluster --config` com `role: worker`), os nós são containers: `docker exec -it <nome>-worker bash` faz o papel do `ssh node01`. O roteiro desta página (drain, delete, `kubeadm reset`, novo join) foi testado assim.
+    - No lab, tire um worker e coloque de novo: drain e delete no control plane, `kubeadm reset -f` no worker, comando novo com `--print-join-command`. Todas as saídas desta página vieram desse roteiro, num worker de verdade.
+    - Desligue o `ip_forward` (`sysctl -w net.ipv4.ip_forward=0`) antes do join e leia o erro do preflight. Ligue de novo antes de seguir.
     - Apague o token com `kubeadm token delete` e tente o join: veja a espera de 5 minutos e a mensagem final.
     - Troque um caractere do hash e compare: esse erro aparece na hora.
     - Rode `kubeadm join ... --v=5` para ver cada verificação do preflight e cada tentativa da descoberta.

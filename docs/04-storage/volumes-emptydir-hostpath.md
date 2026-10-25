@@ -1,6 +1,6 @@
 # Volumes em Pods: emptyDir e hostPath
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Storage (10%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Storage (10%)
 
 ## O que é
 
@@ -129,9 +129,9 @@ spec:
 - **`emptyDir` sobrevive a restart do container, não à remoção do Pod.** `kubectl delete pod` (ou o Deployment trocar o Pod) leva os dados embora.
 - **Montar volume num diretório esconde o conteúdo original** daquele diretório na imagem.
 - **`hostPath` é do nó.** Num cluster com vários workers, o Pod pode cair em outro nó e não achar o arquivo. Se a questão exige o mesmo nó, use `nodeName` ou `nodeSelector`.
-- **`type: Directory` com caminho inexistente**: o Pod fica em `ContainerCreating` e o evento diz `hostPath type check failed`. Use `DirectoryOrCreate` quando a questão não garantir que o caminho existe.
-- **`emptyDir` com `medium: Memory`** conta como memória do container. Encher o tmpfs pode causar `OOMKilled`.
-- **`sizeLimit` estourado** expulsa o Pod (`Evicted`), não dá erro de escrita na hora.
+- **`type: Directory` com caminho inexistente**: o Pod fica em `ContainerCreating`. Evento real: `MountVolume.SetUp failed for volume "v" : hostPath type check failed, /nao/existe is not a directory, unable to determine its type: path "/nao/existe" does not exist`. Use `DirectoryOrCreate` quando a questão não garantir que o caminho existe.
+- **`emptyDir` com `medium: Memory`** conta como memória do container. Encher o tmpfs pode causar `OOMKilled`. O `df -h` dentro do container mostra `tmpfs`.
+- **`sizeLimit` estourado** expulsa o Pod (`Evicted`), não dá erro de escrita na hora. No teste, um `dd` de 50 MB num `emptyDir` de `sizeLimit: 10Mi` terminou sem erro; minutos depois o Pod ficou `Failed`, com `Evicted: Usage of EmptyDir volume "v" exceeds the limit "10Mi".`
 - **Sidecar que lê arquivo do outro container**: os dois precisam montar **o mesmo** volume (mesmo `name` em `volumeMounts`), mesmo que em caminhos diferentes.
 
 ## Pratique
@@ -187,11 +187,15 @@ kubectl exec -n vol-lab shared -c reader -- ls /node-logs | head -3
 kubectl exec -n vol-lab shared -c reader -- touch /node-logs/x     # deve falhar: somente leitura
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1):
 
 ```console
 $ kubectl exec -n vol-lab shared -c reader -- cat /in/date.txt
-Fri Oct 23 18:40:05 UTC 2026
+Sun Oct 25 08:55:17 UTC 2026
+$ kubectl exec -n vol-lab shared -c reader -- ls /node-logs | head -3
+README
+apport.log
+apt
 $ kubectl exec -n vol-lab shared -c reader -- touch /node-logs/x
 touch: /node-logs/x: Read-only file system
 command terminated with exit code 1

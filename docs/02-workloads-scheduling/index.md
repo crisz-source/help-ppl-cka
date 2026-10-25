@@ -12,7 +12,7 @@ O domínio de **o que roda e onde roda**: os controladores que mantêm as aplica
 | Understand the primitives used to create robust, self-healing, application deployments | [DaemonSet, Job, CronJob e StatefulSet](daemonset-job-cronjob-statefulset.md) |
 | Configure Pod admission and scheduling (limits, node affinity, etc.) | [Taints, tolerations e nodeSelector](taints-tolerations-nodeselector.md) · [Affinity e anti-affinity](affinity.md) · [Requests, limits e QoS](requests-limits-qos.md) · [ResourceQuota](resourcequota.md) |
 
-<!-- VERIFICAR: conferir a lista acima contra a versão atual do currículo em https://github.com/cncf/curriculum -->
+Lista conferida com o currículo oficial `CKA_Curriculum_v1.37.pdf` (<https://github.com/cncf/curriculum>) em 2026-10-25.
 
 ## Ordem sugerida de estudo
 

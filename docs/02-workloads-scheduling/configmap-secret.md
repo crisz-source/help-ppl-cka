@@ -1,6 +1,6 @@
 # ConfigMap e Secret
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Workloads & Scheduling (15%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Workloads & Scheduling (15%)
 
 ## O que é
 
@@ -19,7 +19,7 @@ Os dois chegam ao Pod de três formas:
 |---|---|---|
 | Uma variável | `env[].valueFrom.configMapKeyRef` / `secretKeyRef` | **Não**: só com Pod novo |
 | Todas as chaves como variáveis | `envFrom[].configMapRef` / `secretRef` | **Não** |
-| Arquivos num volume | `volumes[].configMap` / `secret` | **Sim**, depois de até ~1 min (sincronização do kubelet). Exceto com `subPath` |
+| Arquivos num volume | `volumes[].configMap` / `secret` | **Sim**, mas não na hora: o kubelet sincroniza periodicamente e usa cache (no lab, o arquivo mudou ~90 s depois do `patch`). Exceto com `subPath`, que nunca atualiza |
 
 ## Como funciona por dentro
 
@@ -57,9 +57,9 @@ kubectl describe secret db                                 # mostra tamanhos, n�
 kubectl get secret db -o jsonpath='{.data.senha}' | base64 -d; echo
 echo -n 'S3nh@!' | base64                                  # -n: sem quebra de linha no valor
 
-# Injetar num Deployment sem escrever YAML
+# Injetar num Deployment sem escrever YAML (o kubectl converte o nome: app.properties → APP_PROPERTIES)
 kubectl set env deployment/web --from=configmap/app-cfg
-kubectl set env deployment/web --from=secret/db --prefix=DB_
+kubectl set env deployment/web --from=secret/db --prefix=DB_      # usuario → DB_USUARIO
 
 # Conferir dentro do Pod
 kubectl exec deploy/web -- env | grep -E 'LOG_LEVEL|DB_'
@@ -156,7 +156,7 @@ spec:
         name: nginx-conf
 ```
 
-ConfigMap/Secret imutável (`immutable: true`): não aceita mais edição, só apagar e recriar. Reduz carga no API server em clusters grandes.
+ConfigMap/Secret imutável (`immutable: true`): não aceita mais edição, só apagar e recriar (`data: Forbidden: field is immutable when immutable is set`). Reduz carga no API server em clusters grandes.
 
 ## Na documentação oficial
 
@@ -176,7 +176,7 @@ ConfigMap/Secret imutável (`immutable: true`): não aceita mais edição, só a
 
 - **base64 não é criptografia.** Quem lê o Secret lê o valor. A questão pode pedir para **descobrir** uma senha: `kubectl get secret X -o jsonpath='{.data.chave}' | base64 -d`.
 - **`echo` sem `-n` põe uma quebra de linha no valor** ao codificar à mão. Prefira `kubectl create secret ... --from-literal` ou `stringData`.
-- **No volume é `secretName`** (Secret) e `name` (ConfigMap). Trocar dá erro de validação.
+- **No volume é `secretName`** (Secret) e `name` (ConfigMap). Trocar dá erro de validação: `strict decoding error: unknown field "spec.volumes[0].secret.name"`.
 - **Variável de ambiente não atualiza.** Mudou o ConfigMap usado em `env`/`envFrom`? `kubectl rollout restart deployment/X`.
 - **`subPath` não atualiza** e montar sem `subPath` **esconde** o conteúdo original do diretório. Montar um ConfigMap em `/etc/nginx` apaga o `nginx.conf` da imagem.
 - **Referência a ConfigMap/Secret inexistente**: o Pod fica em `CreateContainerConfigError` (env) ou `ContainerCreating` (volume). `kubectl describe pod` mostra qual falta.
@@ -237,7 +237,7 @@ kubectl exec -n config-lab web -- cat /etc/secret/API_KEY; echo
 kubectl exec -n config-lab web -- touch /etc/secret/x       # deve falhar: somente leitura
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1):
 
 ```console
 $ kubectl exec -n config-lab web -- printenv APP_COLOR
@@ -251,7 +251,7 @@ command terminated with exit code 1
 
 ??? tip "No lab / Killercoda"
 
-    - Edite o ConfigMap (`kubectl edit cm web-cfg -n config-lab`) e confira que `APP_COLOR` não muda. Monte o ConfigMap como volume, edite de novo e veja o arquivo mudar em até um minuto.
+    - Edite o ConfigMap (`kubectl edit cm web-cfg -n config-lab`) e confira que `APP_COLOR` não muda. Monte o ConfigMap como volume, edite de novo e veja o arquivo mudar (no lab, ~90 s).
     - Crie um Pod que referencia um ConfigMap inexistente e leia o status (`CreateContainerConfigError`) e os eventos.
     - Codifique um valor com `echo` sem `-n`, ponha no `data` de um Secret e veja o `\n` aparecer no valor lido no Pod.
     - No control plane, leia o Secret direto do etcd com `etcdctl get /registry/secrets/config-lab/web-secret` (com as mesmas flags de certificado de [Backup e restore do etcd](../01-cluster-architecture/etcd-backup-restore.md)) e confirme que o valor aparece legível: sem `EncryptionConfiguration`, o etcd guarda o Secret sem criptografia.

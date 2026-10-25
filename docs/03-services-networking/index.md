@@ -12,7 +12,7 @@ Um quinto da prova. É o domínio de **como o tráfego chega aos Pods**: endere�
 | Use the Gateway API to manage Ingress traffic | [Gateway API](gateway-api.md) |
 | Know how to use Ingress controllers and Ingress resources | [Ingress](ingress.md) |
 
-<!-- VERIFICAR: conferir a lista acima contra a versão atual do currículo em https://github.com/cncf/curriculum -->
+Itens conferidos com o currículo oficial `CKA_Curriculum_v1.37.pdf` (<https://github.com/cncf/curriculum>) em 2026-10-25. O currículo também lista *"Understand connectivity between Pods"*, que este site não cobre em página própria.
 
 ## Ordem sugerida de estudo
 

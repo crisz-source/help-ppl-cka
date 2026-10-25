@@ -1,6 +1,6 @@
 # NetworkPolicy
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Services & Networking (20%)
+> **Versão do Kubernetes:** v1.37 (CNI: Calico v3.33.0) · **Última revisão:** 2026-10-25 · **Domínio:** Services & Networking (20%)
 
 ## O que é
 
@@ -15,6 +15,8 @@ Três regras definem o comportamento:
 Para uma conexão de A para B passar, é preciso que **o egress de A permita** e que **o ingress de B permita**. A resposta da conexão é liberada automaticamente: o controle é por conexão, não por pacote.
 
 **Quem aplica é o plugin de rede (CNI)**, não o Kubernetes. Calico e Cilium aplicam. O Flannel sozinho **não** aplica: a política é aceita pela API e simplesmente ignorada.
+
+**A política olha o IP de origem.** Se algo no caminho fizer NAT entre Pods, o destino passa a ver o IP do **nó**, nenhum `podSelector` casa, e tudo é bloqueado, inclusive o que a política libera. Isso aconteceu no lab: depois de trocar o Flannel pelo Calico, sobraram nos nós as regras de NAT do Flannel (cadeia `FLANNEL-POSTRTG`). A API via todo cliente como `10.0.1.5`, o IP do nó. Removidas as regras, a API passou a ver o IP real do Pod e a política funcionou. Para conferir o IP que chega, a imagem de teste `agnhost` (`/agnhost netexec`) responde o IP do cliente em `/clientip`.
 
 ## Como funciona por dentro
 
@@ -203,10 +205,10 @@ Políticas padrão (o ponto de partida de "nega tudo e libera o necessário"):
 ## Pegadinhas da prova
 
 - **E × OU:** `- namespaceSelector` e `podSelector` no **mesmo item** (sem `-` no segundo) é E. Com `-` nos dois, é OU e libera muito mais do que o pedido.
-- **`policyTypes` omitido.** Sem o campo, `Ingress` entra **sempre** e `Egress` só entra se houver bloco `egress`. Uma política com só `egress:` e sem `policyTypes` também vira **default-deny de ingress** para os Pods selecionados. Na dúvida, declare `policyTypes` explicitamente. Confira o que a API gravou com `kubectl get netpol -o custom-columns=NOME:.metadata.name,TIPOS:.spec.policyTypes`.
+- **`policyTypes` omitido.** Sem o campo, `Ingress` entra **sempre** e `Egress` só entra se houver bloco `egress`. Uma política com só `egress:` e sem `policyTypes` também vira **default-deny de ingress** para os Pods selecionados. Na dúvida, declare `policyTypes` explicitamente. Confira o que a API gravou com `kubectl get netpol -o custom-columns=NOME:.metadata.name,TIPOS:.spec.policyTypes`: no teste, uma política só com `egress:` apareceu como `[Ingress Egress]` e bloqueou o ingress da API.
 - **`podSelector: {}` no `spec`** = todos os Pods do namespace. **`podSelector` vazio dentro de `from`** = todos os Pods **do namespace da política**, não do cluster. Para "qualquer Pod do cluster", use `namespaceSelector: {}`.
 - **A porta é a do container (targetPort)**, porque a política vê o tráfego depois que o Service já traduziu o IP. Liberar a porta `80` do Service quando o container escuta em `8080` não funciona.
-- **Egress negado quebra o DNS.** Ao restringir egress, libere UDP **e** TCP 53 para o CoreDNS (`k8s-app: kube-dns` em `kube-system`), senão o teste falha por "bad address" e parece problema da política de destino.
+- **Egress negado quebra o DNS.** Ao restringir egress, libere UDP **e** TCP 53 para o CoreDNS (`k8s-app: kube-dns` em `kube-system`), senão o teste falha por "bad address" e parece problema da política de destino. No lab, com default-deny de egress: `wget: bad address 'api-svc'`. Liberando só a porta 53, o nome passou a resolver e o erro virou `wget: download timed out`, porque o egress para a API continuava negado.
 - **Os dois lados contam:** se o namespace de origem tem default-deny de egress, liberar só o ingress no destino não basta.
 - **Namespace da política:** a política só seleciona Pods do próprio namespace (`metadata.namespace`). Criar no namespace errado não dá erro, só não faz efeito.
 - **`namespaceSelector` usa labels do namespace**, não o nome. Se a questão disser "namespace `monitoring`", use `kubernetes.io/metadata.name: monitoring` ou confira os labels com `kubectl get ns --show-labels`.
@@ -265,21 +267,20 @@ kubectl run t3 -n shop --image=busybox:1.36 --rm -it --restart=Never -- wget -qO
 kubectl run t4 -n default --image=busybox:1.36 --labels=app=frontend --rm -it --restart=Never -- wget -qO- -T 2 http://$API:8080
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Resultado real dos quatro testes (v1.37.1 com Calico; a API é a imagem `agnhost`, que responde o nome do Pod em `/hostname`):
 
-```console
-$ kubectl run t1 -n shop --image=busybox:1.36 --labels=app=frontend --rm -it --restart=Never -- wget -qO- -T 2 http://$API:8080
-<html><body>api ok</body></html>
-pod "t1" deleted
-$ kubectl run t3 -n shop --image=busybox:1.36 --rm -it --restart=Never -- wget -qO- -T 2 http://$API:8080
-wget: download timed out
-pod "t3" deleted
-pod shop/t3 terminated (Error)
-```
+| Teste | Origem | Resultado |
+|---|---|---|
+| t1 | `app=frontend` em `shop` | `api-c4994b678-5ggp2` (passou) |
+| t2 | Pod sem label em `monitoring` | `api-c4994b678-5ggp2` (passou) |
+| t3 | Pod sem label em `shop` | `wget: download timed out` |
+| t4 | `app=frontend` em `default` | `wget: download timed out` |
+
+Na forma **E** (um item só, `namespaceSelector` + `podSelector`), o resultado muda: só passa um Pod `app=frontend` **dentro** de `monitoring`; t1 e t2 passam a dar timeout.
 
 ??? tip "No lab / Killercoda"
 
-    - Confira o CNI do lab kubeadm. Se for Flannel, aplique uma default-deny e veja que nada muda; com Calico ou Cilium, o tráfego para.
+    - Confira o CNI do lab kubeadm. Se for Flannel, aplique uma default-deny e veja que nada muda; com Calico ou Cilium, o tráfego para. Se trocar o Flannel pelo Calico, remova também as regras `FLANNEL-*` do iptables de cada nó (ou reinicie os nós), senão o NAT que sobra quebra as políticas.
     - Troque a solução para a forma E (um item só) e repita os quatro testes: veja quais mudam de resultado.
     - Aplique uma default-deny de **egress** no namespace `shop` e veja o `wget http://api-svc` falhar por DNS. Depois libere a porta 53 e veja voltar.
     - Libere a porta do Service (ex.: `80`) em vez da do container (`8080`) e confirme que o tráfego continua bloqueado.

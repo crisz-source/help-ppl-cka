@@ -1,10 +1,10 @@
 # Treinar troubleshooting
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-25 · Trilha para quem já sabe criar recursos, mas trava quando algo não funciona
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · Trilha para quem já sabe criar recursos, mas trava quando algo não funciona
 
 **Você já sabe os objetos, mas precisa ganhar velocidade no diagnóstico?** Treine por sintomas: comece pelo estado que você observa e descubra qual evidência procurar. Troubleshooting é **30% da prova**, o maior domínio.
 
-Todos os 23 cenários desta trilha foram quebrados de propósito num cluster kind v1.36.4 (1 control plane + 1 worker). As mensagens são as saídas reais, recortadas no que importa (sem colunas de idade, por exemplo).
+Todos os 23 cenários desta trilha foram quebrados de propósito no lab (VMs Azure, kubeadm v1.37.1, 1 control plane + 2 workers, Calico). A primeira versão foi feita num cluster kind; tudo foi refeito nas VMs, que se comportam como a prova. As mensagens são as saídas reais, recortadas no que importa (sem colunas de idade, por exemplo).
 
 ## O roteiro
 

@@ -1,6 +1,6 @@
 # Pods: Pending, CrashLoopBackOff, ImagePullBackOff
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Troubleshooting (30%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Troubleshooting (30%)
 
 ## O que é
 
@@ -31,9 +31,11 @@ Exit codes que ajudam a fechar o diagnóstico de `CrashLoopBackOff`:
 | `1` | Erro genérico da aplicação: leia o log |
 | `126` | Comando existe mas não é executável (permissão) |
 | `127` | **Comando não encontrado** (erro de digitação no `command`, binário que não existe na imagem) |
-| `137` | Morto com SIGKILL: **OOMKilled** ou liveness probe falhando |
+| `137` | Morto com SIGKILL: **OOMKilled**, ou processo que não saiu no prazo depois do SIGTERM |
 | `139` | Segmentation fault |
-| `143` | Morto com SIGTERM (encerramento normal, ou liveness) |
+| `143` | Morto com SIGTERM, quando o processo não trata o sinal |
+
+**Liveness não tem exit code próprio.** O kubelet manda SIGTERM, e o código depende de como a aplicação reage. No lab, um nginx com liveness numa porta errada terminou como `Completed`, exit **0** (o nginx encerra limpo no SIGTERM). A pista certa é o evento: `Container c failed liveness probe, will be restarted`.
 
 ## Comandos essenciais
 
@@ -133,8 +135,8 @@ Causas de `Pending` e a mensagem que aparece em `FailedScheduling`:
 
 ## Pegadinhas da prova
 
-- **`logs` ou `logs --previous`?** Depende de o container estar morto ou rodando de novo (testado em v1.36):
-    - container **morto, esperando o backoff** (`CrashLoopBackOff`, `Error`): o `kubectl logs` **sem flag** já mostra o log da execução que morreu. O `--previous` pode falhar com `unable to retrieve container logs`, porque o kubelet só guarda o último container morto.
+- **`logs` ou `logs --previous`?** Depende de o container estar morto ou rodando de novo (testado em v1.36 e de novo em v1.37.1):
+    - container **morto, esperando o backoff** (`CrashLoopBackOff`, `Error`): o `kubectl logs` **sem flag** já mostra o log da execução que morreu (no teste: `sh: comando-que-nao-existe: not found`). O `--previous` falhou com `unable to retrieve container logs for containerd://...`, porque o kubelet só guarda o último container morto.
     - container que **morreu e já voltou a rodar** (crash depois de minutos, liveness): o `kubectl logs` mostra só a execução nova, e o `--previous` mostra a que morreu.
     - Na dúvida, rode os dois.
 - **`describe` primeiro, `logs` depois.** `ImagePullBackOff`, `Pending` e `CreateContainerConfigError` **não têm log**: o container nunca rodou. A resposta está nos Events.
@@ -143,7 +145,8 @@ Causas de `Pending` e a mensagem que aparece em `FailedScheduling`:
 - **Pod avulso não aceita `kubectl edit`** na maioria dos campos (só `image`, `activeDeadlineSeconds`, tolerations novas). Para mudar `command`, `resources` etc., use `kubectl replace --force -f` com o YAML corrigido.
 - **Pod de Deployment: corrija o Deployment.** Editar ou apagar o Pod não adianta: o ReplicaSet recria igual.
 - **`Pending` sem nenhum evento** = o scheduler não está rodando. Vá para o control plane.
-- **`0/1 Running` com 0 restarts** = readiness probe falhando. **Muitos restarts com `Running`** = liveness probe matando o container (exit 137/143).
+- **`0/1 Running` com 0 restarts** = readiness probe falhando (evento `Readiness probe failed`). **Restarts subindo, com o `STATUS` alternando entre `Running` e `CrashLoopBackOff`** = liveness probe matando o container (eventos `Liveness probe failed` e `Container c failed liveness probe, will be restarted`). Não espere exit 137: no teste deu 0.
+- **Binário inexistente no `command`** (sem shell na frente) dá `RunContainerError`, não `CrashLoopBackOff`: `exec: "naoexiste": executable file not found in $PATH`. Com `sh -c`, o mesmo erro vira exit 127 e `CrashLoopBackOff`.
 
 ## Pratique
 
@@ -177,20 +180,37 @@ kubectl get deploy api -n broken                       # READY 2/2
 kubectl get pods -n broken
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1), antes e depois da correção:
 
 ```console
 $ kubectl get pods -n broken
 NAME                   READY   STATUS             RESTARTS   AGE
-api-5d9c7f6b8d-7xk2p   0/1     ImagePullBackOff   0          40s
+api-74cc6577d7-cvdk9   0/1     ImagePullBackOff   0          25s
+api-74cc6577d7-kr8zr   0/1     ImagePullBackOff   0          25s
+$ kubectl set image deployment/api -n broken nginx=nginx:1.27-alpine
+deployment.apps/api image updated
 $ kubectl get deploy api -n broken
 NAME   READY   UP-TO-DATE   AVAILABLE   AGE
-api    2/2     2            2           90s
+api    2/2     2            2           34s
+```
+
+Os sete Pods quebrados do lab (os três do YAML de referência e mais quatro), 75 segundos depois de criados:
+
+```console
+$ kubectl get pods
+NAME                  READY   STATUS              RESTARTS      AGE
+binario-inexistente   0/1     RunContainerError   3 (35s ago)   75s
+comando-errado        0/1     Error               3 (62s ago)   75s
+exit0                 0/1     Completed           3 (60s ago)   75s
+grande-demais         0/1     Pending             0             75s
+imagem-errada         0/1     ImagePullBackOff    0             75s
+liveness              0/1     CrashLoopBackOff    4 (30s ago)   75s
+readiness             0/1     Running             0             75s
 ```
 
 ??? tip "No lab / Killercoda"
 
     - Aplique os três Pods quebrados do YAML de referência e, para cada um, diga a causa **só pelo `describe`**, antes de olhar o YAML.
     - Crie um Pod com `command: ["echo", "oi"]` e veja `CrashLoopBackOff` com exit code 0.
-    - Crie um Pod com liveness probe numa porta errada e observe os restarts com `Running`.
+    - Crie um Pod com liveness probe numa porta errada e observe os restarts, o `STATUS` alternando com `CrashLoopBackOff` e o exit code que a sua imagem devolve.
     - Use `kubectl debug -it <pod> --image=busybox:1.36 --target=<container>` num Pod de imagem sem shell (ex.: `registry.k8s.io/pause`).

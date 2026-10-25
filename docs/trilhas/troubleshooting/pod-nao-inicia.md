@@ -1,18 +1,18 @@
 # Pod não inicia
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-25 · Trilha de troubleshooting · 6 cenários
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · Trilha de troubleshooting · 6 cenários
 
 Seis motivos para um Pod não chegar a `Running`, cada um com o roteiro **sintoma → primeiro comando → evidência → causas → correção → validação**. A explicação de cada estado está em [Pods: Pending, CrashLoopBackOff, ImagePullBackOff](../../05-troubleshooting/pods.md).
 
 ```console
 $ kubectl get pods
 NAME     READY   STATUS                       RESTARTS      AGE
-crash    0/1     Error                        3 (61s ago)   75s
-grande   0/1     Pending                      0             75s
-imagem   0/1     ImagePullBackOff             0             75s
-oom      0/1     OOMKilled                    3 (56s ago)   75s
-semcm    0/1     CreateContainerConfigError   0             75s
-semvol   0/1     ContainerCreating            0             75s
+crash    0/1     Error                        3 (62s ago)   76s
+grande   0/1     Pending                      0             76s
+imagem   0/1     ImagePullBackOff             0             76s
+oom      0/1     OOMKilled                    3 (54s ago)   75s
+semcm    0/1     CreateContainerConfigError   0             76s
+semvol   0/1     ContainerCreating            0             76s
 ```
 
 ## Pending: recursos insuficientes
@@ -22,7 +22,7 @@ semvol   0/1     ContainerCreating            0             75s
 3. **Evidência:**
 
     ```console
-    Warning  FailedScheduling  default-scheduler  0/2 nodes are available: 1 Insufficient cpu, 1 node(s) had untolerated taint(s).
+    Warning  FailedScheduling  default-scheduler  0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 Insufficient cpu.
     ```
 
 4. **Causas prováveis:** o `requests` do container é maior do que sobra em qualquer nó. Aqui eram 64 CPUs. O scheduler compara com os **requests** já reservados, não com o uso real.

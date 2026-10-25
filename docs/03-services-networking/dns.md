@@ -1,6 +1,6 @@
 # DNS do cluster
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Services & Networking (20%)
+> **Versão do Kubernetes:** v1.37 (CoreDNS 1.14.6) · **Última revisão:** 2026-10-25 · **Domínio:** Services & Networking (20%)
 
 ## O que é
 
@@ -40,6 +40,8 @@ search shop.svc.cluster.local svc.cluster.local cluster.local
 options ndots:5
 ```
 
+O kubelet também acrescenta ao `search` os domínios do nó. No lab Azure, o `resolv.conf` real de um Pod em `shop` terminava com o domínio interno da Azure: `search shop.svc.cluster.local svc.cluster.local cluster.local j0nzkcbsfnuubgfdcrqy4sr45f.nx.internal.cloudapp.net`.
+
 - **`search`** é o que permite usar nome curto. `web-svc` vira `web-svc.shop.svc.cluster.local`, e `web-svc.outro-ns` vira `web-svc.outro-ns.svc.cluster.local`.
 - **`ndots:5`**: nomes com menos de 5 pontos passam primeiro pelas buscas do `search`. Por isso uma consulta a `google.com` gera algumas tentativas internas antes da externa.
 - Nome curto só funciona **no mesmo namespace**. Para outro namespace, use pelo menos `<service>.<namespace>`.
@@ -68,11 +70,11 @@ kubectl -n kube-system get configmap coredns -o yaml
 # Logs do CoreDNS
 kubectl -n kube-system logs -l k8s-app=kube-dns
 
-# Testar resolução com Pod temporário (busybox 1.28: o nslookup das versões novas tem saída problemática)
+# Testar resolução com Pod temporário (busybox 1.28: o nslookup das versões novas falha com nome curto)
 kubectl run dns-test --image=busybox:1.28 --rm -it --restart=Never -- nslookup web-svc.shop
 
-# Gravar a saída num arquivo (formato comum na prova)
-kubectl run dns-test --image=busybox:1.28 --rm -it --restart=Never -- nslookup web-svc.shop > /opt/svc-dns.txt
+# Gravar a saída num arquivo (formato comum na prova): -i basta, o -t não é preciso
+kubectl run dns-test --image=busybox:1.28 --rm -i --restart=Never -- nslookup web-svc.shop > /opt/svc-dns.txt
 
 # Resolver o nome DNS de um Pod: IP com hifens no lugar dos pontos
 kubectl get pod web-0 -n shop -o wide          # pega o IP, ex.: 10.244.1.5
@@ -81,11 +83,11 @@ kubectl run dns-test --image=busybox:1.28 --rm -it --restart=Never -- nslookup 1
 # Ver o resolv.conf de um Pod
 kubectl exec -it <pod> -- cat /etc/resolv.conf
 
-# Imagem de diagnóstico usada na documentação oficial (tem dig e nslookup)
-kubectl run dnsutils --image=registry.k8s.io/e2e-test-images/jessie-dnsutils:1.3 --restart=Never -- sleep infinity
+# Pod de diagnóstico da documentação oficial (tem dig e nslookup). Atenção ao --command
+kubectl run dnsutils --image=registry.k8s.io/e2e-test-images/agnhost:2.39 --restart=Never --command -- sleep infinity
 kubectl exec -it dnsutils -- dig +search web-svc.shop
 
-# Depois de editar o ConfigMap: o plugin "reload" aplica sozinho em até ~2 min; para forçar:
+# Depois de editar o ConfigMap: o plugin "reload" aplica sozinho (no lab, ~70 s); para forçar:
 kubectl -n kube-system rollout restart deployment coredns
 
 # Conferir o que o kubelet passa aos Pods (em um nó)
@@ -98,11 +100,27 @@ grep -A2 -E 'clusterDNS|clusterDomain' /var/lib/kubelet/config.yaml
 kubectl run dns-custom --image=nginx --dry-run=client -o yaml > pod-dns.yaml
 ```
 
-<!-- VERIFICAR: tag mais recente da imagem jessie-dnsutils citada na página "Debugging DNS Resolution" -->
+A página *Debugging DNS Resolution* trocou a antiga imagem `jessie-dnsutils` pela `agnhost:2.39`. Sem `--command`, o `sleep infinity` vira argumento do programa `/agnhost`, e o container termina na hora: o `kubectl exec` responde `cannot exec in a deleted state`.
+
+Comparação real (v1.37.1) do mesmo nome com namespace, `web-svc.shop`:
+
+```console
+$ kubectl run d128 --image=busybox:1.28 --rm -i --restart=Never -- nslookup web-svc.shop
+Server:    10.96.0.10
+Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
+
+Name:      web-svc.shop
+Address 1: 10.110.31.166 web-svc.shop.svc.cluster.local
+$ kubectl run d136 --image=busybox:1.36 --rm -i --restart=Never -- nslookup web-svc.shop
+Server:		10.96.0.10
+Address:	10.96.0.10:53
+
+** server can't find web-svc.shop: NXDOMAIN
+```
 
 ## YAML de referência
 
-`Corefile` padrão do kubeadm (ConfigMap `coredns` em `kube-system`), comentado:
+`Corefile` padrão do kubeadm v1.37 (ConfigMap `coredns` em `kube-system`), comentado. Este é o conteúdo real do lab:
 
 ??? example "YAML completo: ConfigMap"
 
@@ -129,7 +147,10 @@ kubectl run dns-custom --image=nginx --dry-run=client -o yaml > pod-dns.yaml
             forward . /etc/resolv.conf {   # o que não é do cluster vai para o DNS do nó
                max_concurrent 1000
             }
-            cache 30
+            cache 30 {                  # cache de 30 s...
+               disable success cluster.local   # ...mas não para nomes do cluster (novo no kubeadm recente)
+               disable denial cluster.local
+            }
             loop                        # detecta loop de encaminhamento e derruba o CoreDNS de propósito
             reload                      # recarrega quando o ConfigMap muda
             loadbalance
@@ -186,13 +207,14 @@ empresa.local:53 {
 
 - **Nome curto em outro namespace não resolve.** `web-svc` só funciona no namespace do Service. De fora dele, use `web-svc.shop` ou o FQDN.
 - **Service se chama `kube-dns`, Pods e Deployment se chamam `coredns`.** O label dos Pods é `k8s-app=kube-dns`.
-- **busybox novo e `nslookup`.** Versões recentes do busybox mostram erro ou saída estranha em nomes do cluster. Use `busybox:1.28` ou a imagem `dnsutils`.
+- **busybox novo e `nslookup`.** No busybox 1.36, `nslookup web-svc.shop` deu `NXDOMAIN`; no 1.28, o mesmo comando resolveu. Com o FQDN completo os dois funcionam. Use `busybox:1.28` ou o Pod `dnsutils`.
 - **Nome de Pod com pontos.** É `10-244-1-5.shop.pod.cluster.local`, com hifens. E o namespace vem antes de `pod`.
 - **`dnsPolicy: Default` não é o padrão.** O padrão é `ClusterFirst`.
 - **Pod com `hostNetwork: true`** usa o DNS do nó, a menos que tenha `dnsPolicy: ClusterFirstWithHostNet`.
 - **Headless não tem IP de Service.** O `nslookup` devolve vários IPs (um por Pod). É o comportamento esperado.
-- **Editar o Corefile e esperar efeito na hora.** O `reload` leva um tempo. Se a questão for cronometrada, faça `rollout restart`. Antes, confira os logs do CoreDNS: erro de sintaxe no Corefile derruba o CoreDNS em `CrashLoopBackOff`.
-- **Gravar a saída no arquivo pedido.** Com `kubectl run ... --rm -it`, o redirecionamento `>` roda no **seu** terminal e grava a saída no host, que é o que a prova quer. Confira o arquivo com `cat` depois.
+- **Editar o Corefile e esperar efeito na hora.** O `reload` leva um tempo (no lab, ~70 s). Se a questão for cronometrada, faça `rollout restart`. Antes, confira os logs do CoreDNS. Com erro de sintaxe, os Pods que já rodam **continuam** com a configuração antiga e só registram `[ERROR] plugin/reload: Corefile changed but reload failed: ... Unknown directive '...'`. O estrago aparece no restart: os Pods novos caem em `CrashLoopBackOff`.
+- **Gravar a saída no arquivo pedido.** Com `kubectl run ... --rm -i`, o redirecionamento `>` roda no **seu** terminal e grava a saída no host, que é o que a prova quer. Confira o arquivo com `cat` depois.
+- **Salvar o ConfigMap antes de editar, do jeito certo.** Um `kubectl get cm coredns -o yaml > backup.yaml` leva o `resourceVersion`, e o `kubectl apply -f backup.yaml` depois falha com `Conflict: the object has been modified`. Para restaurar, use `kubectl replace --force -f backup.yaml`, ou guarde só o Corefile e recrie com `kubectl create cm coredns --from-file=Corefile=... --dry-run=client -o yaml | kubectl replace -f -`.
 
 ## Pratique
 
@@ -210,12 +232,12 @@ empresa.local:53 {
     mkdir -p /root/CKA
 
     # Service
-    kubectl run test-nslookup --image=busybox:1.28 --rm -it --restart=Never \
+    kubectl run test-nslookup --image=busybox:1.28 --rm -i --restart=Never \
       -- nslookup nginx-resolver-svc > /root/CKA/nginx.svc
 
     # Pod: pegar o IP e trocar pontos por hifens
     IP=$(kubectl get pod nginx-resolver -o jsonpath='{.status.podIP}')
-    kubectl run test-nslookup --image=busybox:1.28 --rm -it --restart=Never \
+    kubectl run test-nslookup --image=busybox:1.28 --rm -i --restart=Never \
       -- nslookup ${IP//./-}.default.pod.cluster.local > /root/CKA/nginx.pod
     ```
     `${IP//./-}` é substituição do bash: troca todo `.` por `-`. Pode digitar o nome à mão, se preferir.
@@ -228,9 +250,9 @@ cat /root/CKA/nginx.pod     # Name: 10-244-x-y.default.pod.cluster.local + IP do
 kubectl get svc nginx-resolver-svc -o wide; kubectl get pod nginx-resolver -o wide   # IPs batem?
 ```
 
-O arquivo pode conter também a linha `pod "test-nslookup" deleted`, gerada pelo `--rm`. Normalmente isso é aceito. Se quiser o arquivo limpo, rode o Pod sem `--rm`, use `kubectl logs` para gravar e apague o Pod depois.
+O arquivo termina com a linha `pod "test-nslookup" deleted from default namespace`, gerada pelo `--rm`. Normalmente isso é aceito. Se quiser o arquivo limpo, rode o Pod sem `--rm`, use `kubectl logs` para gravar e apague o Pod depois.
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1):
 
 ```console
 $ cat /root/CKA/nginx.svc
@@ -238,8 +260,15 @@ Server:    10.96.0.10
 Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
 
 Name:      nginx-resolver-svc
-Address 1: 10.96.45.12 nginx-resolver-svc.default.svc.cluster.local
-pod "test-nslookup" deleted
+Address 1: 10.106.146.110 nginx-resolver-svc.default.svc.cluster.local
+pod "test-nslookup" deleted from default namespace
+$ cat /root/CKA/nginx.pod
+Server:    10.96.0.10
+Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
+
+Name:      10-244-190-66.default.pod.cluster.local
+Address 1: 10.244.190.66 10-244-190-66.nginx-resolver-svc.default.svc.cluster.local
+pod "test-nslookup" deleted from default namespace
 ```
 
 ??? tip "No lab / Killercoda"

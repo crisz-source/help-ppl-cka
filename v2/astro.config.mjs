@@ -4,6 +4,22 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import nav from './src/generated/nav.json' with { type: 'json' };
 
+// O Expressive Code põe um "Janela do terminal" escondido em cada bloco de shell, e o Pagefind
+// indexa esse texto: os resultados da busca começavam com "terminal $ ...". Fora do índice.
+const buscaSemRotuloDeTerminal = {
+	name: 'busca-sem-rotulo-de-terminal',
+	hooks: {
+		// no nível do grupo: a moldura (com o figcaption) é montada depois dos hooks de bloco
+		postprocessRenderedBlockGroup({ renderData }) {
+			const visitar = (no) => {
+				if (no.tagName === 'figcaption') no.properties['data-pagefind-ignore'] = '';
+				no.children?.forEach(visitar);
+			};
+			visitar(renderData.groupAst);
+		},
+	},
+};
+
 export default defineConfig({
 	site: 'https://crisz-source.github.io',
 	base: '/help-ppl-cka/v2', // o layout 1 fica na raiz; o CI publica este build em site/v2
@@ -31,6 +47,7 @@ export default defineConfig({
 			},
 			expressiveCode: {
 				themes: ['github-dark-default', 'github-light-default'],
+				plugins: [buscaSemRotuloDeTerminal],
 				styleOverrides: { borderRadius: '0.6rem', codeFontFamily: "'JetBrains Mono', monospace" },
 			},
 		}),

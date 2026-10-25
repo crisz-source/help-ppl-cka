@@ -1,13 +1,13 @@
 # Armazenamento não funciona
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-25 · Trilha de troubleshooting · 3 cenários
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · Trilha de troubleshooting · 3 cenários
 
-O PVC fica `Pending` ou o Pod fica preso em `ContainerCreating`. O primeiro comando é `kubectl describe pvc <nome>` (ou `describe pod`, se o problema for o volume no Pod). No laboratório (kind), a StorageClass padrão é `standard`, com o provisionador `rancher.io/local-path` e `WaitForFirstConsumer`.
+O PVC fica `Pending` ou o Pod fica preso em `ContainerCreating`. O primeiro comando é `kubectl describe pvc <nome>` (ou `describe pod`, se o problema for o volume no Pod). No lab (kubeadm com o local-path-provisioner), a StorageClass padrão é `local-path`, com `WaitForFirstConsumer`.
 
 ```console
 $ kubectl get sc
-NAME                 PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
-standard (default)   rancher.io/local-path   Delete          WaitForFirstConsumer   false                  10m
+NAME                   PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+local-path (default)   rancher.io/local-path   Delete          WaitForFirstConsumer   false                  97m
 ```
 
 **`Pending` nem sempre é erro.** Com `WaitForFirstConsumer`, o PVC espera um Pod que o use. O evento diz isso:
@@ -35,7 +35,7 @@ A correção é apagar e recriar o PVC (`kubectl replace --force -f pvc.yaml`).
     ```
 
 4. **Causas prováveis:** nome da classe digitado errado, ou classe de outro cluster. Confira com `kubectl get sc`.
-5. **Correção:** recriar o PVC com uma classe existente (aqui, `standard`).
+5. **Correção:** recriar o PVC com uma classe existente (aqui, `local-path`).
 6. **Validar:** o PVC passa a `WaitForFirstConsumer` e liga (`Bound`) quando um Pod o usa.
 
 ## accessMode que o provisionador não suporta
@@ -45,7 +45,7 @@ A correção é apagar e recriar o PVC (`kubectl replace --force -f pvc.yaml`).
 3. **Evidência:**
 
     ```console
-    Warning  ProvisioningFailed  rancher.io/local-path_...  failed to provision volume with StorageClass "standard": NodePath only supports ReadWriteOnce and ReadWriteOncePod (1.22+) access modes
+    Warning  ProvisioningFailed  rancher.io/local-path_...  failed to provision volume with StorageClass "local-path": NodePath only supports ReadWriteOnce and ReadWriteOncePod (1.22+) access modes
     ```
 
 4. **Causas prováveis:** `ReadWriteMany` num armazenamento local, que só serve um nó. Com PV criado à mão, o equivalente é o PV não oferecer o modo pedido: o PVC não liga.
@@ -59,7 +59,7 @@ A correção é apagar e recriar o PVC (`kubectl replace --force -f pvc.yaml`).
 3. **Evidência:**
 
     ```console
-    Warning  FailedMount  kubelet  MountVolume.SetUp failed for volume "d" : hostPath type check failed: /srv/dados is not a directory
+    Warning  FailedMount  kubelet  MountVolume.SetUp failed for volume "d" : hostPath type check failed, /srv/dados is not a directory, unable to determine its type: path "/srv/dados" does not exist
     ```
 
 4. **Causas prováveis:** `type: Directory` exige que o diretório já exista no nó onde o Pod caiu. Num cluster com vários workers, ele pode existir em um nó e não no outro.

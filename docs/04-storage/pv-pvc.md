@@ -1,6 +1,6 @@
 # PV e PVC: binding e accessModes
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Storage (10%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Storage (10%)
 
 ## O que é
 
@@ -160,16 +160,16 @@ spec:
 
 ## Pegadinhas da prova
 
-- **PV não tem namespace; PVC tem.** Colocar `namespace` no PV é ignorado; esquecer o `namespace` do PVC o cria no `default`, e o Pod em outro namespace não o encontra.
-- **`storageClassName` precisa bater.** PV com `manual` e PVC sem classe não se ligam. E se o cluster tiver **StorageClass padrão**, um PVC sem `storageClassName` recebe a classe padrão automaticamente e não liga em PV sem classe. Para ligar num PV sem classe, use `storageClassName: ""` explícito.
+- **PV não tem namespace; PVC tem.** Colocar `namespace` no PV é ignorado em silêncio (no teste, o PV foi criado sem aviso e com `metadata.namespace` vazio); esquecer o `namespace` do PVC o cria no `default`, e o Pod em outro namespace não o encontra.
+- **`storageClassName` precisa bater.** PV com `manual` e PVC sem classe não se ligam. E se o cluster tiver **StorageClass padrão**, um PVC sem `storageClassName` recebe a classe padrão automaticamente e não liga em PV sem classe (no lab, o PVC ganhou `local-path` e ficou esperando o provisionador). Para ligar num PV sem classe, use `storageClassName: ""` explícito: no teste, ligou na hora.
 - **PVC maior que o PV** (ou com `accessModes` que o PV não tem) fica `Pending` para sempre. O evento depende da classe:
     - sem classe: `no persistent volumes available for this claim and no storage class is set`;
     - com um nome de classe que **não existe como objeto StorageClass** (o `manual` dos exemplos): `storageclass.storage.k8s.io "manual" not found`. Parece erro, mas é normal: o nome só serve para casar PV com PVC, e o binding estático funciona assim mesmo.
 - **O PVC mostra a capacidade do PV**, não a que pediu. Pediu 500Mi, ligou num PV de 1Gi: `CAPACITY 1Gi`.
 - **`claimName` é o nome do PVC.** Pôr o nome do PV no Pod deixa o Pod em `Pending` com `persistentvolumeclaim "..." not found`.
 - **`hostPath` é do nó onde o Pod roda.** Num lab com vários workers, o Pod recriado em outro nó vê um diretório vazio.
-- **PVC em uso não some na hora.** `kubectl delete pvc` deixa o PVC em `Terminating` até o Pod que o usa ser apagado (proteção `kubernetes.io/pvc-protection`).
-- **Mudar `accessModes` ou `storageClassName` de um PVC já criado** não é permitido: apague e recrie.
+- **PVC em uso não some na hora.** `kubectl delete pvc` deixa o PVC em `Terminating` até o Pod que o usa ser apagado (finalizer `kubernetes.io/pvc-protection`, visível em `metadata.finalizers`).
+- **Mudar `accessModes` ou `storageClassName` de um PVC já criado** não é permitido: `spec: Forbidden: spec is immutable after creation except resources.requests and volumeAttributesClassName for bound claims`. Apague e recrie.
 
 ## Pratique
 
@@ -236,15 +236,18 @@ kubectl get pvc pvc-logs -n storage-lab         # STATUS Bound, CAPACITY 2Gi
 kubectl exec -n storage-lab logger -- tail -2 /var/log/app/out.txt
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1; as colunas `VOLUMEATTRIBUTESCLASS` e `REASON` aparecem nas versões recentes do kubectl):
 
 ```console
 $ kubectl get pv pv-logs
-NAME      CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                  STORAGECLASS   AGE
-pv-logs   2Gi        RWO            Retain           Bound    storage-lab/pvc-logs   manual         30s
+NAME      CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                  STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+pv-logs   2Gi        RWO            Retain           Bound    storage-lab/pvc-logs   manual         <unset>                          12s
 $ kubectl get pvc pvc-logs -n storage-lab
-NAME       STATUS   VOLUME    CAPACITY   ACCESS MODES   STORAGECLASS   AGE
-pvc-logs   Bound    pv-logs   2Gi        RWO            manual         30s
+NAME       STATUS   VOLUME    CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+pvc-logs   Bound    pv-logs   2Gi        RWO            manual         <unset>                 13s
+$ kubectl exec -n storage-lab logger -- tail -2 /var/log/app/out.txt
+Sun Oct 25 08:59:51 UTC 2026
+Sun Oct 25 09:00:01 UTC 2026
 ```
 
 O PV criado à mão tem `Retain` como padrão. O `Delete` é o padrão dos PVs criados por uma StorageClass.

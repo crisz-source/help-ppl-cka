@@ -1,6 +1,6 @@
 # Requests, limits e QoS
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Workloads & Scheduling (15%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Workloads & Scheduling (15%)
 
 ## O que é
 
@@ -63,6 +63,25 @@ kubectl get pod app -o jsonpath='{.status.containerStatuses[0].lastState.termina
 # LimitRange
 kubectl get limitrange -n dev
 kubectl describe limitrange -n dev
+
+# Mudar recursos de um Pod rodando, sem recriar (in-place resize)
+kubectl patch pod burstable --subresource resize -p '{"spec":{"containers":[{"name":"app","resources":{"requests":{"cpu":"200m"}}}]}}'
+```
+
+O *in-place resize* deixa mudar CPU e memória de um Pod que já está rodando. O limite é a classe de QoS: um resize que mudaria a classe é recusado (saída real, v1.37.1):
+
+```console
+$ kubectl patch pod guaranteed --subresource resize -p '{"spec":{"containers":[{"name":"app","resources":{"limits":{"cpu":"400m"}}}]}}'
+The Pod "guaranteed" is invalid: spec: Invalid value: "Guaranteed": Pod QOS Class may not change as a result of resizing
+```
+
+O OOMKilled do Pod `estoura` (YAML abaixo), lido no `describe`:
+
+```console
+$ kubectl describe pod estoura | grep -A3 "State:"
+    State:          Terminated
+      Reason:       OOMKilled
+      Exit Code:    137
 ```
 
 ## YAML de referência
@@ -156,11 +175,11 @@ spec:
 ## Pegadinhas da prova
 
 - **Scheduler usa requests, não uso real nem limits.** Pod `Pending` com `Insufficient cpu` quer dizer que as **reservas** não cabem.
-- **`m` em memória é mili.** `memory: 128m` não é 128 MB, é 0,128 byte. A API **aceita** e só mostra um aviso (`fractional byte value "128m" is invalid`), fácil de passar despercebido. O certo é `128Mi`.
+- **`m` em memória é mili.** `memory: 128m` não é 128 MB, é 0,128 byte. A API **aceita** e só mostra um aviso (`Warning: spec.containers[0].resources.requests[memory]: fractional byte value "128m" is invalid, must be an integer`), fácil de passar despercebido. No lab, um Pod assim bagunçou até o `kubectl describe node`, que passou a mostrar a memória reservada como `283115520128m`. O certo é `128Mi`.
 - **Guaranteed exige CPU e memória**, iguais, em **todos** os containers (inclusive init containers e sidecars). Faltou um, vira Burstable.
 - **OOMKilled = exit 137** e `Reason: OOMKilled` em `Last State`. CPU acima do limite **não mata**, só deixa lento.
-- **A QoS é calculada na criação** e o campo `status.qosClass` não muda. Para mudar a classe, recrie o Pod.
-- **LimitRange vale só para Pods novos** e só no namespace dele.
+- **A QoS é calculada na criação** e não muda. O in-place resize altera CPU e memória, mas recusa qualquer mudança que troque a classe. Para mudar a classe, recrie o Pod.
+- **LimitRange vale só para Pods novos** e só no namespace dele. Com `max`, o Pod acima do teto é recusado: `pods "grandao" is forbidden: maximum cpu usage per Container is 1, but limit is 2`.
 - **Questão "o Pod não sobe no nó"**: compare o request com o que sobra em `kubectl describe node` → `Allocated resources`.
 
 ## Pratique
@@ -201,7 +220,7 @@ spec:
     kubectl get pods -n qos-lab -o jsonpath='{range .items[*]}{.metadata.name}:{.status.qosClass}{"\n"}{end}' > /opt/qos.txt
     cat /opt/qos.txt
     ```
-    Se o namespace tiver um LimitRange com padrões, o `besteffort` ganharia requests e viraria Burstable. Confira com `kubectl get limitrange -n qos-lab` antes.
+    Se o namespace tiver um LimitRange com padrões, o `besteffort` ganharia requests e viraria Burstable. Confira com `kubectl get limitrange -n qos-lab` antes. Se o `>` responder `Permission denied` (usuário sem acesso a `/opt`), grave com `... | sudo tee /opt/qos.txt`.
 
 **Como verificar:**
 
@@ -210,7 +229,7 @@ kubectl get pods -n qos-lab -o custom-columns=NOME:.metadata.name,QOS:.status.qo
 cat /opt/qos.txt
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1):
 
 ```console
 $ kubectl get pods -n qos-lab -o custom-columns=NOME:.metadata.name,QOS:.status.qosClass

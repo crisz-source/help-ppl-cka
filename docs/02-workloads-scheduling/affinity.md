@@ -1,6 +1,6 @@
 # Affinity e anti-affinity
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Workloads & Scheduling (15%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Workloads & Scheduling (15%)
 
 ## O que é
 
@@ -251,23 +251,22 @@ kubectl get pods -l app=frontend                    # a terceira fica Pending
 kubectl describe pod <pod-pending> | grep -A3 Events
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1, lab com 1 control plane + 2 workers):
 
 ```console
-$ kubectl get pods -l app=frontend -o wide
-NAME                        READY   STATUS    RESTARTS   AGE   IP           NODE
-frontend-6d8f7c9b5d-4kq2x   1/1     Running   0          20s   10.244.1.9   w1
-frontend-6d8f7c9b5d-n7v8p   1/1     Running   0          20s   10.244.2.6   w2
-$ kubectl describe pod frontend-6d8f7c9b5d-zz9lm | grep -A3 Events
-Events:
-  Type     Reason            Age   From               Message
-  ----     ------            ----  ----               -------
-  Warning  FailedScheduling  5s    default-scheduler  0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 node(s) didn't match pod anti-affinity rules. ...
+$ kubectl get pods -l app=frontend -o wide        # colunas recortadas: NAME, READY, STATUS, NODE
+NAME                        READY   STATUS    NODE
+frontend-7c88b45c87-pxhfn   1/1     Running   w2
+frontend-7c88b45c87-rfqkg   1/1     Running   w1
+$ kubectl describe pod frontend-7c88b45c87-hpnxs | grep FailedScheduling
+  Warning  FailedScheduling  6s    default-scheduler  0/3 nodes are available: 1 node(s) had untolerated taint(s), 2 node(s) didn't match pod anti-affinity rules. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 No preemption victims found for incoming pod.
 ```
+
+A mensagem conta os três nós: o control plane foi descartado pelo taint, e os dois workers pela anti-affinity. A parte `preemption:` diz que tirar outro Pod do caminho também não resolveria.
 
 ??? tip "No lab / Killercoda"
 
-    - Troque a anti-affinity para `preferred` e escale para 4: veja as réplicas extras empilharem em vez de ficarem `Pending`.
-    - Remova o label `tier` de `w2` com os Pods rodando e confirme que nada muda (`IgnoredDuringExecution`). Depois `kubectl rollout restart deployment frontend` e veja o Pod de `w2` ficar `Pending`.
+    - Troque a anti-affinity para `preferred` e escale para 4: veja as réplicas extras empilharem em vez de ficarem `Pending` (no lab: 2 no `w1`, 2 no `w2`).
+    - Remova o label `tier` de `w2` com os Pods rodando e confirme que nada muda (`IgnoredDuringExecution`). Depois `kubectl rollout restart deployment frontend`: o primeiro Pod novo fica `Pending` (o `w1` já tem uma réplica e o `w2` perdeu o label), e o rollout para ali, com os dois Pods antigos ainda rodando.
     - Faça um `podAffinity` para um Deployment `api` acompanhar um Pod `cache` e mova o cache de nó (apague e recrie com `nodeName`).
     - Ao terminar, remova os labels: `kubectl label nodes w1 w2 tier-`.

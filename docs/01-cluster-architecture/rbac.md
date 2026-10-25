@@ -1,6 +1,6 @@
 # RBAC
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
 
 ## O que é
 
@@ -132,8 +132,18 @@ Use `--dry-run=client -o yaml` quando o enunciado pedir algo que os flags impera
 
 ## Pegadinhas da prova
 
-- **`roleRef` é imutável.** Para trocar o papel de um binding, apague e recrie. `kubectl edit` vai falhar.
-- **ClusterRoleBinding não aceita Role**, só ClusterRole. Já o RoleBinding aceita os dois.
+- **`roleRef` é imutável.** Para trocar o papel de um binding, apague e recrie. `kubectl edit` ou `patch` falham (saída real, v1.37.1):
+
+    ```console
+    The RoleBinding "jane-pod-reader" is invalid: roleRef: Invalid value: {"APIGroup":"rbac.authorization.k8s.io","Kind":"Role","Name":"deploy-mgr"}: field is immutable
+    ```
+
+- **ClusterRoleBinding não aceita Role**, só ClusterRole. Já o RoleBinding aceita os dois. A API recusa:
+
+    ```console
+    The ClusterRoleBinding "crb-com-role" is invalid: roleRef.kind: Unsupported value: "Role": supported values: "ClusterRole"
+    ```
+
 - **apiGroup errado.** `deployments` fica em `apps`, não em `""`. Se `can-i` responder `no` quando deveria ser `yes`, confira o apiGroup com `kubectl api-resources`.
 - **Recurso no singular.** Em YAML o campo `resources` usa o plural minúsculo (`pods`, não `Pod`).
 - **`--serviceaccount` usa `namespace:nome`**, não só o nome. E `--as` usa `system:serviceaccount:namespace:nome`.
@@ -165,7 +175,7 @@ Use `--dry-run=client -o yaml` quando o enunciado pedir algo que os flags impera
 kubectl auth can-i create deployments -n ops --as=system:serviceaccount:ops:deploy-bot   # yes
 kubectl auth can-i delete deployments -n ops --as=system:serviceaccount:ops:deploy-bot   # no
 kubectl auth can-i list deployments -n default --as=system:serviceaccount:ops:deploy-bot # no
-kubectl describe role deploy-bot-role -n ops   # confira apiGroup "apps"
+kubectl describe role deploy-bot-role -n ops   # o recurso aparece como deployments.apps
 ```
 
 ??? tip "No lab / Killercoda"

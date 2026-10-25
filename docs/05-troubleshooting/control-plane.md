@@ -1,6 +1,6 @@
 # Control plane fora: crictl, /var/log/pods, manifestos
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Troubleshooting (30%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Troubleshooting (30%)
 
 ## O que é
 
@@ -85,7 +85,7 @@ O manifesto do kube-apiserver, com os pontos onde cenários da prova costumam pl
       hostNetwork: true
       containers:
         - name: kube-apiserver
-          image: registry.k8s.io/kube-apiserver:v1.36.5    # tag inexistente = ImagePull no nó
+          image: registry.k8s.io/kube-apiserver:v1.37.1    # tag inexistente = ImagePull no nó
           command:
             - kube-apiserver
             - --advertise-address=10.0.1.4
@@ -126,7 +126,8 @@ O manifesto do kube-apiserver, com os pontos onde cenários da prova costumam pl
 
 - **`kubectl` não funciona ⇒ não perca tempo nele.** Vá direto para `crictl ps -a` no control plane.
 - **Container `Exited` com `ATTEMPT` aumentando** = sobe e morre. A causa está no `crictl logs` dele ou no arquivo em `/var/log/pods/`.
-- **Container que nem aparece no `crictl ps -a`** = o kubelet não conseguiu ler o manifesto (YAML inválido) ou a imagem não baixa. Olhe o `journalctl -u kubelet`.
+- **Container que nem aparece no `crictl ps -a`** = o kubelet não conseguiu ler o manifesto (YAML inválido) ou a imagem não baixa. Olhe o `journalctl -u kubelet`. Com a indentação quebrada de propósito, o log real foi: `"Could not process manifest file" err="/etc/kubernetes/manifests/kube-scheduler.yaml: couldn't parse as pod(yaml: line 60: did not find expected '-' indicator ...`.
+- **Procurando o manifesto que sumiu? Cuidado com as cópias antigas.** No lab, `find / -name kube-scheduler.yaml` achou quatro arquivos, entre eles `/etc/kubernetes/tmp/kubeadm-backup-manifests-<data>/kube-scheduler.yaml`: o backup que o `kubeadm upgrade` deixa, com a imagem da versão **anterior** (`kube-scheduler:v1.36.5`). Devolver essa cópia rebaixa o componente. Confira o `image:` antes de usar.
 - **Faça backup antes de editar:** `cp /etc/kubernetes/manifests/kube-apiserver.yaml /root/kube-apiserver.yaml.bak`. **Fora** da pasta de manifestos: o kubelet lê todo arquivo dali (só ignora nomes que começam com `.`), e um `.bak` lá dentro é tratado como outro manifesto de static Pod. Veja [o teste abaixo](#teste-real-um-bak-dentro-da-pasta-de-manifestos): com o mesmo `metadata.name`, ele não vira um segundo Pod, mas **substitui** o original e faz suas edições no `.yaml` serem ignoradas.
 - **`kubectl delete pod kube-apiserver-cp` não reinicia nada**: é um mirror Pod. O kubelet o recria em segundos e o container continua o mesmo (mesmo ID, 0 restarts em `crictl ps`).
 - **Espere depois de salvar.** O kubelet leva alguns segundos para recriar, e o apiserver mais uns 30–60 s para responder. `watch crictl ps` em vez de editar de novo.
@@ -135,7 +136,7 @@ O manifesto do kube-apiserver, com os pontos onde cenários da prova costumam pl
 
 ## Teste real: um `.bak` dentro da pasta de manifestos
 
-Feito num cluster kind v1.36.4 (kubelet com `staticPodPath: /etc/kubernetes/manifests`, igual ao kubeadm), em 2026-10-23.
+Feito num cluster kind v1.36.4 (kubelet com `staticPodPath: /etc/kubernetes/manifests`, igual ao kubeadm), em 2026-10-23, e **repetido no lab kubeadm v1.37.1 em 2026-10-25, com o mesmo resultado**: o container do scheduler foi trocado ao criar o `.bak`, a edição no `.yaml` não entrou enquanto o `.bak` existia, e entrou depois que ele foi apagado. As saídas abaixo são as do kind.
 
 **1. Copiar o manifesto do scheduler para `kube-scheduler.yaml.bak` na mesma pasta.** O kubelet não criou um segundo Pod: os dois arquivos têm o mesmo `metadata.name`, então geram o mesmo nome de Pod (`kube-scheduler-<nó>`). Mas o Pod ganhou outro UID (o kubelet calcula o UID do static Pod a partir do conteúdo **e do caminho** do arquivo), e o kubelet tratou isso como um Pod novo. Ele matou o container que rodava e subiu outro, num sandbox novo (`POD ID` diferente):
 
@@ -205,17 +206,17 @@ kubectl get pods -n kube-system -l component=kube-scheduler
 kubectl get pod check -o wide
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1):
 
 ```console
 $ kubectl describe pod check | sed -n '/Events/,$p'
-Events:          <none>
+Events:                      <none>
 $ kubectl get pods -n kube-system -l component=kube-scheduler
 NAME                READY   STATUS    RESTARTS   AGE
-kube-scheduler-cp   1/1     Running   0          40s
-$ kubectl get pod check -o wide
-NAME    READY   STATUS    RESTARTS   AGE   IP              NODE
-check   1/1     Running   0          2m    10.244.80.230   w2
+kube-scheduler-cp   1/1     Running   0          20s
+$ kubectl get pod check -o wide          # colunas recortadas: NAME a NODE
+NAME    READY   STATUS    RESTARTS   AGE   IP               NODE
+check   1/1     Running   0          40s   10.244.190.114   w1
 ```
 
 ??? tip "No lab / Killercoda"

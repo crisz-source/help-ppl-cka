@@ -1,6 +1,6 @@
 # Deployments: rollout, rollback e scale
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Workloads & Scheduling (15%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Workloads & Scheduling (15%)
 
 ## O que é
 
@@ -28,7 +28,7 @@ Os dois parâmetros do `RollingUpdate` (padrão de ambos: `25%`):
 | `maxSurge` | Quantos Pods **a mais** que `replicas` podem existir durante a troca (arredonda para cima) | até 5 Pods |
 | `maxUnavailable` | Quantos Pods podem estar **indisponíveis** (arredonda para baixo) | no mínimo 3 disponíveis |
 
-`maxSurge: 0` e `maxUnavailable: 0` ao mesmo tempo é inválido: a troca nunca andaria.
+`maxSurge: 0` e `maxUnavailable: 0` ao mesmo tempo é inválido, porque a troca nunca andaria. A API recusa: `spec.strategy.rollingUpdate.maxUnavailable: Invalid value: 0: may not be 0 when maxSurge is 0`.
 
 Cada ReplicaSet guarda o número da revisão na anotação `deployment.kubernetes.io/revision`. O Deployment mantém os últimos `revisionHistoryLimit` (padrão **10**) ReplicaSets antigos para permitir rollback.
 
@@ -67,7 +67,7 @@ kubectl rollout restart deployment/web
 
 # Scale
 kubectl scale deployment web --replicas=5
-kubectl scale deployment web --current-replicas=5 --replicas=2   # só escala se hoje forem 5
+kubectl scale deployment web --current-replicas=5 --replicas=2   # só escala se hoje forem 5 (senão: "error: Expected replicas to be 5, was 4")
 
 # Editar ao vivo
 kubectl edit deployment web
@@ -151,11 +151,11 @@ spec:
 
 ## Pegadinhas da prova
 
-- **`kubectl set image` usa o nome do container**, não o do Deployment nem o da imagem. Com `kubectl create deployment web --image=nginx:1.27`, o container se chama `nginx`. Nome errado dá `error: unable to find container named ...`.
+- **`kubectl set image` usa o nome do container**, não o do Deployment nem o da imagem. Com `kubectl create deployment web --image=nginx:1.27`, o container se chama `nginx`. Nome errado dá `error: unable to find container named "web"`.
 - **Scale não é rollout.** `kubectl scale` não gera revisão nova nem aparece no `rollout history`.
 - **`rollout undo` também é um rollout**: a revisão antiga volta com um número **novo** (a 1 vira 3, por exemplo) e some da lista com o número antigo.
 - **Imagem errada não derruba tudo.** Com `RollingUpdate`, os Pods novos ficam em `ImagePullBackOff` e os antigos continuam atendendo. `kubectl rollout status` não termina; a correção é `rollout undo` ou `set image` com a tag certa.
-- **`selector` é imutável.** Para mudar o seletor é preciso apagar e recriar o Deployment.
+- **`selector` é imutável.** Para mudar o seletor é preciso apagar e recriar o Deployment. A API recusa: `spec.selector: Invalid value: {"matchLabels":{"app":"outro"}}: field is immutable`.
 - **Mudar um ConfigMap usado como variável de ambiente não reinicia os Pods.** Use `kubectl rollout restart`.
 - **Não edite o ReplicaSet**: o Deployment desfaz. Edite sempre o Deployment.
 - **Questão pede "registre a mudança"?** Use a anotação `kubernetes.io/change-cause`. A flag `--record` foi descontinuada.
@@ -190,7 +190,7 @@ kubectl get deployment webapp -o jsonpath='{.spec.strategy.rollingUpdate}{"\n"}'
 kubectl get deployment webapp                      # READY 5/5
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real da solução acima (v1.37.1):
 
 ```console
 $ kubectl rollout history deployment/webapp
@@ -200,9 +200,11 @@ REVISION  CHANGE-CAUSE
 3         <none>
 $ kubectl get deployment webapp -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
 nginx:1.26
+$ kubectl get deployment webapp -o jsonpath='{.spec.strategy.rollingUpdate}{"\n"}'
+{"maxSurge":1,"maxUnavailable":0}
 $ kubectl get deployment webapp
 NAME     READY   UP-TO-DATE   AVAILABLE   AGE
-webapp   5/5     5            5           2m
+webapp   5/5     5            5           17s
 ```
 
 A revisão 1 sumiu porque virou a 3 no rollback. A anotação `change-cause` fica no Deployment e é copiada para o ReplicaSet da vez, por isso a revisão 3 mostra `<none>` ou o valor anterior, conforme a ordem dos comandos.

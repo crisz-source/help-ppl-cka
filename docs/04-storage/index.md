@@ -10,7 +10,7 @@ O menor domínio da prova, mas com questões rápidas de pontuar: **onde os dado
 | Configure volume types, access modes and reclaim policies | [Volumes em Pods: emptyDir e hostPath](volumes-emptydir-hostpath.md) · [PV e PVC](pv-pvc.md) (accessModes) · [reclaimPolicy](reclaim-policy.md) |
 | Manage persistent volumes and persistent volume claims | [PV e PVC](pv-pvc.md) · [Expansão de PVC](expansao-pvc.md) |
 
-<!-- VERIFICAR: conferir a lista acima contra a versão atual do currículo em https://github.com/cncf/curriculum -->
+Itens conferidos com o currículo oficial `CKA_Curriculum_v1.37.pdf` (<https://github.com/cncf/curriculum>) em 2026-10-25.
 
 ## Ordem sugerida de estudo
 

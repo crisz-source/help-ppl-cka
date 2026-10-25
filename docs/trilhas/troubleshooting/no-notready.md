@@ -1,6 +1,6 @@
 # Nó NotReady
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-25 · Trilha de troubleshooting · 3 cenários
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · Trilha de troubleshooting · 3 cenários
 
 O nó aparece `NotReady` em `kubectl get nodes`. O primeiro comando é `kubectl describe node <nó>`: a condição `Ready` mostra o status e o motivo, e cada causa tem uma assinatura diferente.
 
@@ -12,12 +12,14 @@ O nó aparece `NotReady` em `kubectl get nodes`. O primeiro comando é `kubectl 
 
 A diferença entre `Unknown` e `False`: com `Unknown`, o kubelet parou de falar com o API server, que não sabe o estado do nó. Com `False`, o kubelet está vivo e **conta** o que está errado.
 
-O passo seguinte é sempre entrar no nó (`ssh <nó>`, depois `sudo -i`). A página [Nó NotReady](../../05-troubleshooting/no-notready.md) do Domínio 5 tem os casos de configuração do kubelet (binário no caminho errado, `cgroupDriver`, certificados) testados no lab.
+O passo seguinte é sempre entrar no nó (`ssh <nó>`, depois `sudo -i`). A página [Nó NotReady](../../05-troubleshooting/no-notready.md) do Domínio 5 tem os outros casos testados no lab (porta errada no `kubelet.conf`, swap ligado, `cgroupDriver`).
+
+Os três cenários foram feitos no lab (VMs Azure, kubeadm v1.37.1, containerd 2.2.1, Calico): `w1` para kubelet e containerd, `w2` para o CNI.
 
 ## kubelet parado
 
-1. **Sintoma:** `cka-worker   NotReady`. No teste, levou cerca de 47 segundos entre parar o kubelet e o nó virar `NotReady`.
-2. **Primeiro comando:** `kubectl describe node cka-worker`
+1. **Sintoma:** `w1   NotReady`. No teste, cerca de 42 segundos entre parar o kubelet e o nó virar `NotReady`.
+2. **Primeiro comando:** `kubectl describe node w1`
 3. **Evidência:**
 
     ```console
@@ -38,20 +40,18 @@ O passo seguinte é sempre entrar no nó (`ssh <nó>`, depois `sudo -i`). A pág
 ## containerd parado
 
 1. **Sintoma:** `NotReady`, mais rápido que no caso do kubelet (cerca de 30 segundos no teste).
-2. **Primeiro comando:** `kubectl describe node cka-worker`
+2. **Primeiro comando:** `kubectl describe node w1`
 3. **Evidência:**
 
     ```console
     Ready   False   KubeletNotReady   container runtime is down
     ```
 
-    No nó, o `crictl` não conecta e o log do kubelet diz o mesmo:
+    No nó, o `crictl` não conecta:
 
     ```console
     $ crictl ps
-    ... validate CRI v1 runtime API for endpoint "unix:///run/containerd/containerd.sock": ... connect: no such file or directory
-    $ journalctl -u kubelet | grep "runtime is down"
-    ... "Skipping pod synchronization" err="container runtime is down"
+    time="2026-10-25T09:59:59Z" level=fatal msg="validate service connection: validate CRI v1 runtime API for endpoint \"unix:///run/containerd/containerd.sock\": rpc error: code = Unavailable desc = connection error: desc = \"transport: Error while dialing: dial unix /run/containerd/containerd.sock: connect: no such file or directory\""
     ```
 
 4. **Causas prováveis:** containerd parado, ou configuração do containerd com erro (o serviço não sobe).
@@ -61,7 +61,7 @@ O passo seguinte é sempre entrar no nó (`ssh <nó>`, depois `sudo -i`). A pág
 ## CNI sem configuração
 
 1. **Sintoma:** `NotReady`, com kubelet e containerd rodando.
-2. **Primeiro comando:** `kubectl describe node cka-worker`
+2. **Primeiro comando:** `kubectl describe node w2`
 3. **Evidência:**
 
     ```console
@@ -72,19 +72,19 @@ O passo seguinte é sempre entrar no nó (`ssh <nó>`, depois `sudo -i`). A pág
 
 4. **Causas prováveis:** o Pod do plugin de rede (DaemonSet do CNI em `kube-system`) não roda nesse nó, ou o arquivo de configuração em `/etc/cni/net.d/` foi apagado.
 5. **Correção:** conferir o DaemonSet do CNI (`kubectl -n kube-system get ds` e `get pods -o wide`) e fazer o Pod dele voltar a rodar no nó. Normalmente é o próprio plugin que grava o arquivo em `/etc/cni/net.d/`.
-6. **Validar:** com o Pod do CNI rodando de novo, o arquivo voltou (`10-kindnet.conflist`) e o nó voltou a `Ready`.
+6. **Validar:** com o `calico-node` rodando de novo no `w2`, os arquivos voltaram (`10-calico.conflist` e `calico-kubeconfig`) e o nó voltou a `Ready`.
 
 ## Outras causas
 
-Disco cheio e falta de memória no nó aparecem como condições próprias (`DiskPressure`, `MemoryPressure`) no mesmo `kubectl describe node`. Não foram reproduzidas aqui, porque provocá-las no kind afeta a máquina inteira.
+Disco cheio e falta de memória no nó aparecem como condições próprias (`DiskPressure`, `MemoryPressure`) no mesmo `kubectl describe node`. Não foram reproduzidas aqui, porque provocá-las derruba o que mais roda no nó.
 
 ## Reproduzir
 
-No kind, o nó é um container com systemd:
+No nó (por SSH):
 
 ```bash
-docker exec cka-worker systemctl stop kubelet          # depois: systemctl enable --now kubelet
-docker exec cka-worker systemctl stop containerd       # depois: systemctl start containerd
+sudo systemctl disable --now kubelet       # depois: sudo systemctl enable --now kubelet
+sudo systemctl stop containerd             # depois: sudo systemctl start containerd
 ```
 
-Para o CNI, o teste tirou o DaemonSet `kindnet` do nó (um `nodeSelector` que nenhum nó tem) e moveu o arquivo de `/etc/cni/net.d/`. Desfazer o `nodeSelector` fez o kindnet voltar e regravar o arquivo.
+Para o CNI, o teste acrescentou ao DaemonSet `calico-node` uma `nodeAffinity` que exclui o `w2` e moveu os arquivos de `/etc/cni/net.d/` do `w2` para outra pasta (com `sudo sh -c 'mv /etc/cni/net.d/* /root/cni-bak/'`: sem o `sh -c`, o `*` é expandido pelo usuário comum, que não lê a pasta). Remover a affinity fez o `calico-node` voltar e regravar os arquivos.

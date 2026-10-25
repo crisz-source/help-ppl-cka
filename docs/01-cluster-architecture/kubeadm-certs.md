@@ -1,6 +1,6 @@
 # Certificados com kubeadm
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
 
 ## O que é
 
@@ -43,9 +43,40 @@ Arquivos em `/etc/kubernetes/pki/` (control plane):
 
 Os kubeconfigs em `/etc/kubernetes/` (`admin.conf`, `super-admin.conf`, `controller-manager.conf`, `scheduler.conf`) têm o certificado de cliente **embutido em base64**. Por isso o `kubeadm certs renew` também regenera esses arquivos.
 
-**Reinício após renovar**: os componentes do control plane são static Pods e só leem os certificados ao iniciar. O kubelet **não** recria o Pod quando um `.crt` muda, só quando o manifest em `/etc/kubernetes/manifests/` muda. Depois de renovar, você precisa reiniciar o apiserver, o controller-manager, o scheduler e o etcd.
+**Reinício após renovar**: o kubelet **não** recria um static Pod quando um `.crt` muda, só quando o manifest em `/etc/kubernetes/manifests/` muda. O que acontece depois do renew depende do certificado (testado na v1.37.1):
 
-**kubelet**: o certificado de cliente do kubelet (`/var/lib/kubelet/pki/kubelet-client-current.pem`) é **rotacionado automaticamente** pelo próprio kubelet (`rotateCertificates: true` na configuração gerada pelo kubeadm). Por isso o `kubelet.conf` aponta para esse arquivo em vez de embutir o certificado. Por isso também o `kubeadm certs check-expiration` **não lista** o `kubelet.conf` (conferido na v1.36.4).
+| Certificado renovado | Sem reiniciar |
+|---|---|
+| `apiserver` (servidor HTTPS da API) | O kube-apiserver **recarrega sozinho**, em até cerca de um minuto: o `openssl s_client` passou a mostrar o certificado novo sem nenhum restart |
+| `etcd-server` | O etcd também **recarrega sozinho** |
+| Cliente embutido em `scheduler.conf` e `controller-manager.conf` | O arquivo muda, mas o processo segue com o certificado que leu ao iniciar |
+
+Por isso a documentação do kubeadm continua mandando **reiniciar os static Pods depois do renew**: nem todo componente recarrega. Faça o reinício sempre; é o procedimento que a prova espera.
+
+**kubelet**: o certificado de cliente do kubelet (`/var/lib/kubelet/pki/kubelet-client-current.pem`) é **rotacionado automaticamente** pelo próprio kubelet (`rotateCertificates: true` na configuração gerada pelo kubeadm). Por isso o `kubelet.conf` aponta para esse arquivo em vez de embutir o certificado. Por isso também o `kubeadm certs check-expiration` **não lista** o `kubelet.conf` (conferido na v1.37.1).
+
+**Upgrade renova os certificados.** No lab, depois do `kubeadm upgrade apply` para a v1.37.1, todos os certificados folha passaram a vencer um ano depois do horário do upgrade:
+
+```console
+$ kubeadm certs check-expiration
+CERTIFICATE                EXPIRES                  RESIDUAL TIME   CERTIFICATE AUTHORITY   EXTERNALLY MANAGED
+admin.conf                 Oct 25, 2027 06:40 UTC   364d            ca                      no
+apiserver                  Oct 25, 2027 06:40 UTC   364d            ca                      no
+apiserver-etcd-client      Oct 25, 2027 06:40 UTC   364d            etcd-ca                 no
+apiserver-kubelet-client   Oct 25, 2027 06:40 UTC   364d            ca                      no
+controller-manager.conf    Oct 25, 2027 06:40 UTC   364d            ca                      no
+etcd-healthcheck-client    Oct 25, 2027 06:40 UTC   364d            etcd-ca                 no
+etcd-peer                  Oct 25, 2027 06:40 UTC   364d            etcd-ca                 no
+etcd-server                Oct 25, 2027 06:40 UTC   364d            etcd-ca                 no
+front-proxy-client         Oct 25, 2027 06:40 UTC   364d            front-proxy-ca          no
+scheduler.conf             Oct 25, 2027 06:40 UTC   364d            ca                      no
+super-admin.conf           Oct 25, 2027 06:40 UTC   364d            ca                      no
+
+CERTIFICATE AUTHORITY   EXPIRES                  RESIDUAL TIME   EXTERNALLY MANAGED
+ca                      Oct 22, 2036 05:25 UTC   9y              no
+etcd-ca                 Oct 22, 2036 05:25 UTC   9y              no
+front-proxy-ca          Oct 22, 2036 05:25 UTC   9y              no
+```
 
 ## Comandos essenciais
 
@@ -98,7 +129,7 @@ grep client-certificate-data /etc/kubernetes/admin.conf | awk '{print $2}' | bas
 **Descobrir qual arquivo cada componente usa** (essencial em Troubleshooting):
 
 ```bash
-grep -E '\-file|cafile|certfile|keyfile|certificate' /etc/kubernetes/manifests/kube-apiserver.yaml
+grep -E -- '--[a-z-]*(file|cafile|certfile|keyfile|certificate)=' /etc/kubernetes/manifests/kube-apiserver.yaml
 ```
 
 `--dry-run=client -o yaml` não se aplica aqui: nenhum desses comandos cria objeto Kubernetes.
@@ -138,7 +169,7 @@ certificateValidityPeriod: 8760h0m0s     # validade dos certificados folha (padr
 caCertificateValidityPeriod: 87600h0m0s  # validade das CAs (padrão 10 anos)
 ```
 
-<!-- VERIFICAR: certificateValidityPeriod e caCertificateValidityPeriod existem a partir da API v1beta4 (kubeadm v1.31); conferir na referência "kubeadm Configuration (v1beta4)" -->
+Os dois campos de validade existem na API `v1beta4`: o `kubeadm config validate --config` aceita o arquivo acima, e a configuração que o próprio kubeadm guarda no cluster (`kubectl -n kube-system get cm kubeadm-config -o yaml`) já traz `certificateValidityPeriod: 8760h0m0s` e `caCertificateValidityPeriod: 87600h0m0s`. Campo com nome errado é recusado: `strict decoding error: unknown field "..."`.
 
 ## Na documentação oficial
 
@@ -154,7 +185,7 @@ caCertificateValidityPeriod: 87600h0m0s  # validade das CAs (padrão 10 anos)
 
 ## Pegadinhas da prova
 
-- **Renovar e não reiniciar.** `check-expiration` mostra a data nova, mas o apiserver continua servindo o certificado antigo até reiniciar.
+- **Renovar e não reiniciar.** Na v1.37 o apiserver e o etcd trocam o certificado de servidor sozinhos, mas o scheduler e o controller-manager continuam com o certificado de cliente que leram ao iniciar. Reinicie os static Pods depois do renew, como manda a documentação.
 - **`kubectl` quebra depois do renew.** O `admin.conf` foi renovado e o `~/.kube/config` ainda tem o certificado antigo. Copie de novo.
 - **`renew` não renova as CAs.** CA vencida exige outro procedimento. Na prova, o que costuma cair é renovar certificado folha.
 - **CA errada nas flags.** `--etcd-cafile` usa `etcd/ca.crt`, não `ca.crt`. Trocar uma pela outra deixa o apiserver sem falar com o etcd, uma questão clássica de Troubleshooting.
@@ -204,7 +235,20 @@ kubectl get nodes   # API respondendo normalmente
 
 ??? tip "No lab / Killercoda"
 
-    - No lab Azure, adicione o **IP público** da VM do control plane ao `apiserver.crt` para usar o `kubectl` de fora. Sem isso, o erro é `x509: certificate is valid for 10.x.x.x, not 20.x.x.x`. Procedimento: incluir o IP em `certSANs`, remover `apiserver.crt`/`apiserver.key` e rodar `kubeadm init phase certs apiserver --config <arquivo>`. <!-- VERIFICAR: conferir o procedimento atual na página "Certificate Management with kubeadm" -->
-    - Rode `kubeadm certs renew all` **sem** reiniciar nada e compare `openssl s_client` (o que é servido) com o arquivo em disco. Assim você vê na prática por que o reinício é obrigatório.
+    - No lab Azure, adicione o **IP público** da VM do control plane ao `apiserver.crt` para usar o `kubectl` de fora. Sem isso, a conexão pelo IP público falha na validação do certificado (no teste, com `curl`: `no alternative certificate subject name matches target host name`). Procedimento testado na v1.37.1:
+
+        ```bash
+        cp -a /etc/kubernetes /root/k8s-backup                     # backup antes
+        kubectl -n kube-system get cm kubeadm-config -o jsonpath='{.data.ClusterConfiguration}' > cluster.yaml
+        # em cluster.yaml, troque "apiServer: {}" por:
+        #   apiServer:
+        #     certSANs:
+        #     - "<IP público>"
+        rm /etc/kubernetes/pki/apiserver.crt /etc/kubernetes/pki/apiserver.key
+        kubeadm init phase certs apiserver --config cluster.yaml   # "...and IPs [10.96.0.1 10.0.1.4 <IP público>]"
+        ```
+
+        O apiserver passou a servir o certificado novo em menos de um minuto, sem restart. A porta 6443 também precisa estar liberada no NSG da VM.
+    - Rode `kubeadm certs renew all` e compare, a cada 30 segundos, o `openssl s_client` (o que é servido) com o arquivo em disco: o apiserver e o etcd trocam sozinhos. Depois confira que o scheduler não foi recriado (`crictl ps --name kube-scheduler`, coluna `CREATED`) e reinicie os static Pods.
     - Troque `--etcd-cafile` por `/etc/kubernetes/pki/ca.crt` no manifest do apiserver e investigue com `crictl logs`. É treino direto de Troubleshooting. Depois desfaça.
     - Antes de qualquer experimento, faça backup de `/etc/kubernetes/` (`cp -a /etc/kubernetes /root/k8s-backup`).

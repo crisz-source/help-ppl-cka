@@ -13,7 +13,7 @@ O maior domínio da prova: quase um terço dos pontos. E não é só ele, porque
 | Troubleshoot services and networking | [Services e Endpoints](../03-services-networking/services-endpoints.md) · [DNS do cluster](../03-services-networking/dns.md) · [NetworkPolicy](../03-services-networking/network-policy.md) |
 | *(aplicações, cobrado em todo o exame)* | [Pods: Pending, CrashLoopBackOff, ImagePullBackOff](pods.md) |
 
-<!-- VERIFICAR: conferir a lista acima contra a versão atual do currículo em https://github.com/cncf/curriculum -->
+Itens conferidos com o currículo oficial `CKA_Curriculum_v1.37.pdf` (<https://github.com/cncf/curriculum>) em 2026-10-25.
 
 ## Ordem sugerida de estudo
 

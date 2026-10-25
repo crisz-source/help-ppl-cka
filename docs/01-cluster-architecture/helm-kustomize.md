@@ -1,9 +1,8 @@
 # Helm e Kustomize
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
+> **Versão do Kubernetes:** v1.37 · **Helm:** v4.3.1 · **Kustomize:** v5.8.1 (embutido no kubectl) · **Última revisão:** 2026-10-25 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
 
-!!! tip "Por que uma página só"
-    O currículo trata os dois como um item só (*"Use Helm and Kustomize to install cluster components"*) e a prova costuma pedir tarefas curtas de cada um. Se esta página crescer (por exemplo, com criação de charts), a sugestão é dividir em `helm.md` e `kustomize.md`.
+O currículo trata os dois como um item só (*"Use Helm and Kustomize to install cluster components"*), e a prova costuma pedir tarefas curtas de cada um.
 
 ## O que é
 
@@ -56,9 +55,9 @@ helm show values metrics-server/metrics-server | less
 # Instalar: helm install <nome-da-release> <repo/chart>
 helm install metrics-server metrics-server/metrics-server \
   -n monitoring --create-namespace \
-  --version 3.12.2 \
+  --version 3.14.0 \
   --set replicas=2
-# (a versão do chart acima é só exemplo: pegue a real com "helm search repo --versions")
+# (3.14.0 era a versão mais nova do chart em outubro de 2026: confira com "helm search repo --versions")
 
 # Instalar com arquivo de valores
 helm install my-app ./meu-chart -n apps -f valores-prod.yaml
@@ -79,10 +78,28 @@ helm uninstall metrics-server -n monitoring
 
 # Só gerar o YAML, sem instalar: o "dry-run" do Helm
 helm template metrics-server metrics-server/metrics-server -n monitoring --set replicas=2 > render.yaml
-helm install metrics-server metrics-server/metrics-server -n monitoring --dry-run
+helm install metrics-server metrics-server/metrics-server -n monitoring --dry-run=client
 
 # Baixar e descompactar o chart para inspecionar
 helm pull metrics-server/metrics-server --untar
+```
+
+No Helm 4, o `--dry-run` sem valor ainda funciona, mas avisa: `--dry-run is deprecated and should be replaced with '--dry-run=client'`. Use `--dry-run=client` (renderiza sem falar com o cluster) ou `--dry-run=server` (valida contra a API).
+
+Saída real do histórico depois de install, upgrade e rollback. O rollback cria uma revisão **nova** (3), com os valores da revisão 1:
+
+```console
+$ helm rollback hist 1 -n hist-t
+Rollback was a success! Happy Helming!
+$ helm history hist -n hist-t
+REVISION  UPDATED                   STATUS      CHART                  APP VERSION  DESCRIPTION
+1         Sun Oct 25 07:29:35 2026  superseded  metrics-server-3.14.0  0.9.0        Install complete
+2         Sun Oct 25 07:29:36 2026  superseded  metrics-server-3.14.0  0.9.0        Upgrade complete
+3         Sun Oct 25 07:29:36 2026  deployed    metrics-server-3.14.0  0.9.0        Rollback to 1
+$ kubectl get secret -n hist-t -l owner=helm -o name
+secret/sh.helm.release.v1.hist.v1
+secret/sh.helm.release.v1.hist.v2
+secret/sh.helm.release.v1.hist.v3
 ```
 
 ### Kustomize
@@ -179,21 +196,30 @@ resources:
 - **Kustomize:** *Declarative Management of Kubernetes Objects Using Kustomize*. Link: <https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/>
     - **Busca rápida:** `kustomize`
     - **Ctrl+F:** `namePrefix`, `patches`, `images`, `configMapGenerator`, `bases and overlays`.
-- **Helm:** a documentação do Helm fica em <https://helm.sh/docs/>, fora de kubernetes.io. <!-- VERIFICAR: se helm.sh/docs está na lista de sites permitidos na prova atual (ver "Resources Allowed" no handbook da Linux Foundation) -->
+- **Helm:** a documentação do Helm fica em <https://helm.sh/docs/>, fora de kubernetes.io, e está na lista de sites permitidos na CKA (página *Resources Allowed* da Linux Foundation).
     - Na prova, o `helm <comando> --help` é a referência mais rápida e sempre disponível. Exemplo: `helm install --help | grep -A2 create-namespace`.
-    - Páginas úteis: *Using Helm* (<https://helm.sh/docs/intro/using_helm/>) e *Cheat Sheet* (<https://helm.sh/docs/intro/cheatsheet/>). <!-- VERIFICAR: links após o lançamento do Helm 4 -->
+    - Páginas úteis: *Using Helm* (<https://helm.sh/docs/intro/using_helm/>) e *Cheat Sheet* (<https://helm.sh/docs/intro/cheatsheet/>).
 
 ## Pegadinhas da prova
 
 - **Ordem dos argumentos.** `helm install <NOME-DA-RELEASE> <CHART>`. Invertido, ele tenta achar um chart com o nome da release.
 - **Namespace do Helm.** `helm list` sem `-n`/`-A` só mostra o namespace atual. E `helm uninstall` sem `-n` não acha a release. O namespace precisa existir, ou use `--create-namespace`.
-- **`--set` com chave errada.** O Helm **não** reclama de chave inexistente: ela é ignorada em silêncio. Confira o nome com `helm show values`.
+- **`--set` com chave errada.** O Helm **não** reclama de chave inexistente: ela é ignorada em silêncio. Confira o nome com `helm show values`. No teste, `helm upgrade ... --set replicaz=5` terminou com `STATUS: deployed`, sem aviso nenhum.
+- **`helm upgrade` esquece os `--set` anteriores.** Sem `--reuse-values`, o upgrade parte dos valores padrão do chart mais o que você passar **agora**. No teste, uma release com `replicas=2` voltou para `1` depois de um `helm upgrade` que não repetiu o `--set replicas=2`. Para mudar um valor e manter os outros: `helm upgrade <release> <chart> --reuse-values --set chave=valor`.
+- **Duas releases do mesmo chart no cluster.** Objetos sem namespace (como o `APIService` do metrics-server) só podem ter um dono. A segunda instalação falha com `invalid ownership metadata; annotation validation error: key "meta.helm.sh/release-name" must equal "metrics": current value is "metrics-server"`.
 - **`--set` com listas e pontos:** `--set image.tag=1.2` (aninhado), `--set 'args={--a,--b}'` (lista). Use aspas simples no shell.
 - **`helm upgrade` sem `--install`** falha se a release ainda não existir.
-- **`-k` × `-f`.** `kubectl apply -f` num diretório com `kustomization.yaml` aplica os arquivos crus, **sem** as transformações. E ainda tenta aplicar o próprio `kustomization.yaml`, o que dá erro.
-- **Patch com nome já prefixado.** O patch referencia o nome **da base** (`web`), não o final (`prod-web`).
-- **Campos depreciados da Kustomize** em material antigo: `bases` (use `resources`), `patchesStrategicMerge`/`patchesJson6902` (use `patches`), `commonLabels` (use `labels`). Ainda funcionam com aviso, mas não escreva código novo com eles. <!-- VERIFICAR: se a versão de Kustomize embutida no kubectl da prova ainda aceita esses campos -->
-- **Versão do Helm.** O Helm 4 foi lançado em novembro de 2025. Os comandos acima são os mesmos no 3 e no 4. Confira com `helm version` no ambiente da prova. <!-- VERIFICAR -->
+- **`-k` × `-f`.** `kubectl apply -f` num diretório com `kustomization.yaml` aplica os arquivos crus, **sem** as transformações. E ainda tenta aplicar o próprio `kustomization.yaml`, o que dá erro. Saída real:
+
+    ```console
+    $ kubectl apply -f overlays/prod
+    resource mapping not found for name: "" namespace: "" from "overlays/prod/kustomization.yaml": no matches for kind "Kustomization" in version "kustomize.config.k8s.io/v1beta1"
+    Error from server (Invalid): error when creating "overlays/prod/replicas-patch.yaml": Deployment.apps "web" is invalid: [spec.selector: Required value, ...]
+    ```
+
+- **Patch com nome já prefixado.** O patch referencia o nome **da base** (`web`), não o final (`prod-web`). Com o nome final, o build falha: `no resource matches strategic merge patch "Deployment.v1.apps/prod-web.[noNs]"`.
+- **Campos depreciados da Kustomize** em material antigo: `bases` (use `resources`), `patchesStrategicMerge`/`patchesJson6902` (use `patches`), `commonLabels` (use `labels`). No kubectl v1.37 (Kustomize v5.8.1) ainda funcionam, com um aviso por campo: `# Warning: 'commonLabels' is deprecated. Please use 'labels' instead. Run 'kustomize edit fix' to update your Kustomization automatically.` Não escreva código novo com eles.
+- **Versão do Helm.** O Helm 4 foi lançado em novembro de 2025. Os comandos desta página foram testados no Helm 4.3.1 e são os mesmos do Helm 3; a diferença que aparece é o aviso do `--dry-run` sem valor. Confira com `helm version` no ambiente da prova.
 
 ## Pratique
 
@@ -233,15 +259,17 @@ resources:
 ```bash
 helm list -n observability                                  # release "metrics", STATUS deployed
 helm get values metrics -n observability                    # replicas: 2
-kubectl get deploy -n observability                         # READY 2/2
+kubectl get deploy -n observability                         # metrics-metrics-server, 2 réplicas
 
 kubectl get all -n staging                                  # recursos no namespace certo
 kubectl get deploy -n staging -o jsonpath='{.items[*].spec.template.spec.containers[*].image}'
 ```
 
+O Deployment se chama `metrics-metrics-server`: o chart monta o nome com a release (`metrics`) e o nome do chart. Num lab kubeadm sem `--kubelet-insecure-tls`, ele fica `READY 0/2`: os Pods rodam, mas não passam no readiness, porque não conseguem ler as métricas dos kubelets. A questão pede a release e o valor, e as duas coisas estão certas.
+
 ??? tip "No lab / Killercoda"
 
-    - Instale o metrics-server com Helm no lab kubeadm. Ele costuma precisar de `--set args='{--kubelet-insecure-tls}'` em labs com certificados de kubelet autoassinados. Depois teste `kubectl top nodes`.
+    - Instale o metrics-server com Helm no lab kubeadm. Sem `--set args='{--kubelet-insecure-tls}'`, o log mostra `x509: cannot validate certificate for 10.0.1.5 because it doesn't contain any IP SANs` e o `kubectl top nodes` responde `error: Metrics API not available`. Com a flag, o `top` funciona.
     - Faça `helm upgrade` mudando um valor, depois `helm history` e `helm rollback`. Em seguida rode `kubectl get secrets -n <ns> | grep sh.helm` e veja onde o histórico mora.
     - Monte base + overlays `dev` e `prod` e compare `kubectl kustomize` dos dois com `diff`.
     - Use `helm template ... > render.yaml` e coloque o resultado como `resources` numa Kustomize, um padrão comum para customizar charts.

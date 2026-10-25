@@ -1,6 +1,6 @@
 # HPA (HorizontalPodAutoscaler)
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Workloads & Scheduling (15%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Workloads & Scheduling (15%)
 
 ## O que é
 
@@ -30,6 +30,8 @@ Exemplo: 2 réplicas, uso médio 90%, meta 50% → teto(2 × 90 / 50) = teto(3,6
 - **Subir** é imediato. **Descer** espera a janela de estabilização de **300 s**: o HPA usa a maior recomendação dos últimos 5 minutos, para não ficar sobe-e-desce.
 - Com várias métricas, vence a que pede **mais** réplicas.
 - O HPA é dono do `replicas`. Um `kubectl scale` manual é desfeito no próximo ciclo.
+
+O que o lab mostrou (v1.37.1, nginx com `requests.cpu: 20m` e três Pods gerando carga): o HPA foi de 2 para 4 e depois para 6 réplicas: aos 30 segundos de carga ainda eram 2, aos 60 já eram 6. Um `kubectl scale --replicas=1` foi desfeito em menos de 20 segundos (`New size: 2; reason: Current number of replicas below Spec.MinReplicas`). Com `stabilizationWindowSeconds: 60`, a descida de 6 para 2 levou cerca de 100 segundos depois que a carga parou: a janela mais o atraso da coleta de métricas.
 
 ## Comandos essenciais
 
@@ -143,12 +145,13 @@ O alvo precisa de `requests` para a meta de `Utilization`:
 
 ## Pegadinhas da prova
 
-- **`TARGETS <unknown>`**: falta metrics-server, falta `requests` do recurso no container, ou os Pods ainda não têm métrica (espere ~1 min). `kubectl describe hpa` mostra qual (`FailedGetResourceMetric`, `missing request for cpu`).
+- **`TARGETS <unknown>`**: falta metrics-server, falta `requests` do recurso no container, ou os Pods ainda não têm métrica (espere ~1 min). `kubectl describe hpa` mostra qual. Saída real sem `requests`: `ScalingActive False FailedGetResourceMetric the HPA was unable to compute the replica count: failed to get cpu utilization: missing request for cpu in container nginx of Pod web-69c6f74b8b-xb86f`.
+- **`--max` é obrigatório** no `kubectl autoscale`: sem ele, `error: required flag(s) "max" not set`.
 - **A porcentagem é do request, não do limit nem do nó.**
 - **`autoscaling/v2`** é a versão atual. Em `v2` a meta fica em `metrics[].resource.target`. O campo `targetCPUUtilizationPercentage` é da `v1`.
 - **Não use `kubectl scale` num Deployment com HPA**: o HPA volta o valor. Mude `minReplicas`/`maxReplicas` no HPA.
 - **Descer demora 5 minutos** por padrão. Na prova, não espere a descida para conferir: confira a configuração (`kubectl get hpa -o yaml`).
-- **`--min` ausente** no `kubectl autoscale` usa 1. Se a questão pede mínimo, informe.
+- **`--min` ausente** no `kubectl autoscale` usa 1: o YAML gerado nem traz `minReplicas`, e a API assume 1. Se a questão pede mínimo, informe.
 - **O nome do HPA criado pelo `kubectl autoscale` é o nome do alvo.** Se a questão pede outro nome, use `--name`.
 
 ## Pratique
@@ -206,19 +209,29 @@ kubectl describe hpa php-hpa -n autoscale | grep -A6 Conditions
 kubectl get hpa php-hpa -n autoscale -o jsonpath='{.spec.behavior.scaleDown.stabilizationWindowSeconds}{"\n"}'
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1, `php` com a imagem `registry.k8s.io/hpa-example`, sem carga):
 
 ```console
 $ kubectl get hpa php-hpa -n autoscale
 NAME      REFERENCE        TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
-php-hpa   Deployment/php   cpu: 1%/60%   2         6         2          90s
+php-hpa   Deployment/php   cpu: 1%/60%   2         6         2          75s
+$ kubectl describe hpa php-hpa -n autoscale | grep -A6 Conditions
+Conditions:
+  Type            Status  Reason            Message
+  ----            ------  ------            -------
+  AbleToScale     True    ReadyForNewScale  recommended size matches current size
+  ScaledToZero    False   NotScaledToZero   the HPA controller did not scale the workload to zero
+  ScalingActive   True    ValidMetricFound  the HPA was able to successfully calculate a replica count from cpu resource utilization (percentage of request)
+  ScalingLimited  True    TooFewReplicas    the desired replica count is less than the minimum replica count
 $ kubectl get hpa php-hpa -n autoscale -o jsonpath='{.spec.behavior.scaleDown.stabilizationWindowSeconds}{"\n"}'
 60
 ```
 
+`ScalingActive True` é a prova de que o HPA lê as métricas. `ScalingLimited True TooFewReplicas` só diz que, sem carga, ele queria menos que o mínimo.
+
 ??? tip "No lab / Killercoda"
 
-    - No lab kubeadm o metrics-server não vem instalado. Crie o HPA antes de instalar e leia o `<unknown>` e as Conditions; depois instale e veja a métrica aparecer. Em kubeadm costuma ser preciso o argumento `--kubelet-insecure-tls` no metrics-server, porque os certificados do kubelet são autoassinados.
+    - No lab kubeadm o metrics-server não vem instalado. Crie o HPA antes de instalar e leia o `<unknown>` e as Conditions; depois instale e veja a métrica aparecer. Em kubeadm é preciso o argumento `--kubelet-insecure-tls` no metrics-server, porque os certificados do kubelet não trazem o IP do nó (ver [Helm e Kustomize](../01-cluster-architecture/helm-kustomize.md)).
     - Tire o `requests.cpu` do Deployment e leia o erro `missing request for cpu` no `describe hpa`.
     - Gere carga com o laço de `wget` e acompanhe `kubectl get hpa -w`. Pare a carga e cronometre a descida (5 min no padrão, 1 min com o `behavior` da solução).
     - Faça `kubectl scale deployment php --replicas=1` com o HPA ativo e veja o número voltar para 2.

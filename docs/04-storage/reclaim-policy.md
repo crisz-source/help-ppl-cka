@@ -1,6 +1,6 @@
 # reclaimPolicy: Retain × Delete
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Storage (10%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Storage (10%)
 
 ## O que é
 
@@ -23,12 +23,23 @@ O ponto que confunde: **`Released` não é `Available`**. O PV `Released` ainda 
 1. (Opcional) limpar ou copiar os dados do disco.
 2. Remover o `claimRef`, e o PV volta a `Available`.
 
-O `Delete` só apaga **dados** quando há quem apague o disco: um provisionador CSI. Num PV estático de `hostPath` com `Delete`, apagar o PVC remove o **objeto** PV, mas o diretório e os arquivos **continuam no nó**. Testado no lab em v1.36. Material antigo diz que o PV vai para `Failed`; não foi o que aconteceu aqui. <!-- VERIFICAR: em que versão o PV hostPath com Delete deixou de ir para Failed -->
+O `Delete` só apaga **dados** quando há quem apague o disco: o provisionador que criou o volume. Num PV estático de `hostPath` com `Delete`, ninguém sabe apagar aquele diretório: o PV vai para **`Failed`**, e os arquivos **continuam no nó**. Saída real (kubeadm v1.37.1, PV em `/mnt/hp-delete`):
+
+```console
+$ kubectl get pv pv-hp
+NAME    CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM     STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+pv-hp   1Gi        RWO            Delete           Failed   shop/hp   manual         <unset>                          21s
+$ kubectl get events -A --field-selector involvedObject.name=pv-hp
+NAMESPACE   LAST SEEN   TYPE      REASON               OBJECT                   MESSAGE
+default     15s         Warning   VolumeFailedDelete   persistentvolume/pv-hp   host_path deleter only supports /tmp/.+ but received provided /mnt/hp-delete
+```
+
+No nó, `ls /mnt/hp-delete` ainda mostrava o arquivo. (Num cluster kind o resultado foi outro: o objeto PV sumiu. Por isso esta página foi validada em VMs com kubeadm, como na prova.)
 
 | PV com `Delete` | Objeto PV | Dados |
 |---|---|---|
-| Criado por StorageClass com provisionador CSI | Apagado | **Apagados** (o disco é destruído) |
-| `hostPath` criado à mão | Apagado | **Ficam no nó** |
+| Criado por StorageClass com provisionador (no lab, o local-path) | Apagado | **Apagados** (no lab, a pasta `/opt/local-path-provisioner/pvc-...` sumiu do nó) |
+| `hostPath` criado à mão | Fica, em **`Failed`** | **Ficam no nó** |
 
 ## Comandos essenciais
 
@@ -91,10 +102,10 @@ kubectl get sc -o custom-columns=NOME:.metadata.name,RECLAIM:.reclaimPolicy
 ## Pegadinhas da prova
 
 - **Nomes diferentes do mesmo campo:** no PV é `persistentVolumeReclaimPolicy`; na StorageClass é `reclaimPolicy`.
-- **PV `Released` não liga em PVC novo.** É preciso remover o `claimRef`. Recriar o PVC com o mesmo nome não resolve.
+- **PV `Released` não liga em PVC novo.** É preciso remover o `claimRef`. Recriar o PVC com o mesmo nome não resolve: no teste, ele ficou `Pending` com `volume "pvc-548aca91-..." already bound to a different claim.`
 - **Mudar a StorageClass não muda PVs que já existem.** Para proteger um PV dinâmico, faça `kubectl patch pv` nele.
 - **Patch antes de apagar.** Se a questão pede "apague o PVC mas preserve os dados", mude o PV para `Retain` **antes** do `kubectl delete pvc`.
-- **`Delete` em PV estático de hostPath** apaga o objeto PV, mas não o diretório do nó. Não use isso como prova de que "os dados foram apagados".
+- **`Delete` em PV estático de hostPath** não apaga o diretório do nó: o PV fica em `Failed` (`host_path deleter only supports /tmp/.+`). Não use isso como prova de que "os dados foram apagados".
 - **`Recycle` está descontinuado.** Se aparecer em material antigo, a resposta moderna é provisionamento dinâmico.
 
 ## Pratique
@@ -135,17 +146,19 @@ kubectl get pv $PV                               # RECLAIM POLICY Retain, STATUS
 kubectl get pvc orders-archive -n shop
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1, PV dinâmico do local-path com um arquivo `pedidos.txt` gravado antes):
 
 ```console
 $ kubectl delete pvc orders-data -n shop; kubectl get pv $PV
-persistentvolumeclaim "orders-data" deleted
-NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS     CLAIM              STORAGECLASS   AGE
-pvc-3f1c2a9e-7d1b-4c55-9a7e-2b1f0c9d8e11   1Gi        RWO            Retain           Released   shop/orders-data   rapido         5m
+persistentvolumeclaim "orders-data" deleted from shop namespace
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS     CLAIM              STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+pvc-548aca91-d456-4c00-8ecd-913e60dfe79b   1Gi        RWO            Retain           Released   shop/orders-data   local-path     <unset>                          10s
 $ kubectl get pv $PV
-NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                 STORAGECLASS   AGE
-pvc-3f1c2a9e-7d1b-4c55-9a7e-2b1f0c9d8e11   1Gi        RWO            Retain           Bound    shop/orders-archive   rapido         6m
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                 STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+pvc-548aca91-d456-4c00-8ecd-913e60dfe79b   1Gi        RWO            Retain           Bound    shop/orders-archive   local-path     <unset>                          24s
 ```
+
+Um Pod montando o `orders-archive` leu o arquivo antigo: `pedido-42`. Os dados atravessaram a troca de PVC.
 
 ??? tip "No lab / Killercoda"
 

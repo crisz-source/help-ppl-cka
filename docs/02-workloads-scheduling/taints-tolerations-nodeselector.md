@@ -1,6 +1,6 @@
 # Taints, tolerations e nodeSelector
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Workloads & Scheduling (15%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Workloads & Scheduling (15%)
 
 ## O que é
 
@@ -39,7 +39,7 @@ Sem `effect` na toleration = casa com qualquer efeito daquela chave.
 Taints que o próprio Kubernetes coloca:
 
 - `node-role.kubernetes.io/control-plane:NoSchedule`: no control plane do kubeadm. É por isso que Pods comuns não rodam lá.
-- `node.kubernetes.io/not-ready` e `node.kubernetes.io/unreachable` (`NoExecute`): quando o nó cai. Todo Pod recebe automaticamente uma toleration de **300 s** para eles; é o tempo até os Pods serem tirados de um nó morto.
+- `node.kubernetes.io/not-ready` e `node.kubernetes.io/unreachable` (`NoExecute`): quando o nó cai. Todo Pod recebe automaticamente uma toleration de **300 s** para eles; é o tempo até os Pods serem tirados de um nó morto. Um Pod criado com `kubectl run` sem nenhuma toleration mostra as duas em `spec.tolerations`: `node.kubernetes.io/not-ready=NoExecute 300s` e `node.kubernetes.io/unreachable=NoExecute 300s`.
 - `node.kubernetes.io/unschedulable:NoSchedule`: colocado pelo `kubectl cordon`.
 
 ## Comandos essenciais
@@ -140,10 +140,10 @@ spec:
 
 - **Toleration não atrai.** Se a questão pede "o Pod deve rodar **só** no nó X", toleration não basta: some `nodeSelector` (ou node affinity) com um label do nó. `kubernetes.io/hostname` já existe em todo nó.
 - **Remover taint é com `-` no fim**, repetindo a chave e o efeito: `kubectl taint nodes w1 dedicado=gpu:NoSchedule-`.
-- **`NoSchedule` não expulsa ninguém.** Pods que já estavam no nó continuam. Só `NoExecute` expulsa.
+- **`NoSchedule` não expulsa ninguém.** Pods que já estavam no nó continuam. Só `NoExecute` expulsa. No teste, com `NoExecute` o Pod sem toleration foi para `Terminating` em 3 segundos, e o Pod com `tolerationSeconds: 30` saiu depois de 33 segundos.
 - **`tolerationSeconds` só vale com `NoExecute`**: com outro efeito a API recusa (`effect must be 'NoExecute' when tolerationSeconds is set`).
 - **Com `operator: Exists`, não informe `value`**: a API recusa (`value must be empty when operator is 'Exists'`).
-- **`value` é string**: valores como `true` ou `1` precisam de aspas no YAML da toleration (`value: "true"`).
+- **`value` é string**: valores como `true` ou `1` precisam de aspas no YAML da toleration (`value: "true"`). Sem aspas: `json: cannot unmarshal bool into Go struct field Toleration.spec.tolerations.value of type string`.
 - **Pod Pending com "untolerated taint"**: leia os eventos. A mensagem diz quantos nós foram descartados e por quê (`0/3 nodes are available: 1 node(s) didn't match Pod's node affinity/selector, 2 node(s) had untolerated taint(s)`). O `kubectl describe node` mostra qual taint cada nó tem.
 - **O control plane tem taint.** Um Pod que precisa rodar lá (ou um DaemonSet que precisa rodar em todos os nós) precisa tolerar `node-role.kubernetes.io/control-plane:NoSchedule`.
 - **nodeSelector é E**: todos os labels listados precisam existir no nó. Para OU, use node affinity.
@@ -195,12 +195,12 @@ kubectl get pod intruso -o wide                      # nunca em w1
 kubectl describe node w1 | grep Taints
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1; quatro Pods `intruso` criados sem toleration foram todos para o `w2`):
 
 ```console
 $ kubectl get pod report -o wide
-NAME     READY   STATUS    RESTARTS   AGE   IP           NODE   NOMINATED NODE   READINESS GATES
-report   1/1     Running   0          12s   10.244.1.7   w1     <none>           <none>
+NAME     READY   STATUS    RESTARTS   AGE   IP               NODE   NOMINATED NODE   READINESS GATES
+report   1/1     Running   0          1s    10.244.190.107   w1     <none>           <none>
 $ kubectl describe node w1 | grep Taints
 Taints:             team=analytics:NoSchedule
 ```

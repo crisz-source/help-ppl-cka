@@ -1,6 +1,6 @@
 # Control plane com problema
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-25 · Trilha de troubleshooting · 3 cenários
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · Trilha de troubleshooting · 3 cenários
 
 Num cluster kubeadm, o kube-apiserver, o kube-scheduler, o kube-controller-manager e o etcd são **static Pods**: o kubelet do control plane os cria a partir dos arquivos em `/etc/kubernetes/manifests/`. Mexer nesses arquivos é o jeito de quebrar e de consertar.
 
@@ -53,26 +53,29 @@ A página [Control plane fora](../../05-troubleshooting/control-plane.md) do Dom
 
 4. **Causas prováveis:** as mesmas do scheduler, no arquivo `kube-controller-manager.yaml`.
 5. **Correção:** devolver ou corrigir o manifesto.
-6. **Validar:** o ReplicaSet aparece (`sem-cm-779b8755d   1   1   1`) e o Deployment fica `1/1`.
+6. **Validar:** o ReplicaSet aparece (`sem-cm-7d99d6cdf8   1   1   1`) e o Deployment fica `1/1`.
 
 ## kube-apiserver com erro no manifesto
 
-1. **Sintoma:** o `kubectl` para de responder. Rodando no próprio control plane (saída real):
+1. **Sintoma:** o `kubectl` para de responder. Rodando no próprio control plane (saída real, lab v1.37.1), a mensagem muda conforme o momento em que o container está:
 
     ```console
-    The connection to the server cka-control-plane:6443 was refused - did you specify the right host or port?
+    Unable to connect to the server: context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+    The connection to the server 10.0.1.4:6443 was refused - did you specify the right host or port?
     ```
+
+    A primeira aparece enquanto o container está subindo; a segunda, entre um restart e outro.
 
 2. **Primeiro comando:** no control plane, `crictl ps -a --name kube-apiserver`
 3. **Evidência:** o container sobe e morre (`Exited`, `ATTEMPT` subindo), e o log diz por quê:
 
     ```console
     $ crictl ps -a --name kube-apiserver
-    CONTAINER       IMAGE           CREATED          STATE    NAME             ATTEMPT
-    d29e512af8e05   b0f70fa6ec47e   28 seconds ago   Exited   kube-apiserver   1
+    CONTAINER           IMAGE               CREATED             STATE               NAME                ATTEMPT             POD ID              POD                 NAMESPACE
+    dd06c7e1c6a3b       82ae6c548117f       3 seconds ago       Running             kube-apiserver      2                   5288acca24cd7       kube-apiserver-cp   kube-system
+    7f27ff138218a       82ae6c548117f       34 seconds ago      Exited              kube-apiserver      1                   5288acca24cd7       kube-apiserver-cp   kube-system
     $ crictl logs --tail 40 <id>
-    ... failed to connect to {Addr: "127.0.0.1:2380", ...}
-    E1025 05:10:48.990324  1 run.go:72] "command failed" err="error creating storage factory: context deadline exceeded"
+    W1025 09:59:20.243160       1 logging.go:55] [core] [Channel #3 SubChannel #4] grpc: addrConn.createTransport failed to connect to {Addr: "127.0.0.1:2380", ServerName: "127.0.0.1:2380", }. Err: connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:2380: connect: connection refused"
     ```
 
     O apiserver tentava falar com o etcd na porta **2380** (a porta entre membros do etcd); a porta de clientes é a **2379**.
@@ -85,7 +88,7 @@ Certificado vencido ou trocado também derruba o control plane. Os casos estão 
 
 ## Reproduzir
 
-No nó do control plane (no kind: `docker exec -it cka-control-plane bash`):
+No nó do control plane (`ssh cp`, depois `sudo -i`):
 
 ```bash
 # scheduler e controller-manager fora

@@ -1,6 +1,6 @@
 # Drain, cordon e uncordon
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
 
 ## O que é
 
@@ -13,9 +13,6 @@ Três comandos para tirar um nó de serviço com segurança (manutenção, upgra
 | `kubectl uncordon` | Marca o nó como agendável de novo. | Nada muda. Pods não voltam sozinhos, só os novos podem ir para lá |
 
 Na prova, drain aparece sozinho ("put node X into maintenance") ou como parte do [upgrade com kubeadm](upgrade-kubeadm.md).
-
-!!! tip "Página separada ou junto do upgrade?"
-    O conteúdo é curto e quase sempre usado no upgrade. Ficou numa página própria porque também cai sozinho e porque o comportamento com PodDisruptionBudget merece espaço. Se preferir menos páginas, dá para virar uma seção de *Upgrade com kubeadm*.
 
 ## Como funciona por dentro
 
@@ -35,6 +32,16 @@ Por padrão o drain **se recusa** a continuar em três casos:
 | Pods **sem controller** (Pod "solto") | Ninguém vai recriá-los: eles somem de vez | `--force` |
 
 Static Pods (os do control plane, em `/etc/kubernetes/manifests`) não são despejados. O drain os ignora.
+
+Os três casos aparecem juntos na mesma mensagem. Saída real (v1.37.1, nó `w2` com dois Pods soltos, `drain-t/solto` e `rede-teste/m-w2`, um Pod com `emptyDir` e os DaemonSets do cluster):
+
+```console
+$ kubectl drain w2
+node/w2 cordoned
+error: unable to drain node "w2" due to error: [cannot delete Pods that declare no controller (use --force to override): drain-t/solto, rede-teste/m-w2, cannot delete DaemonSet-managed Pods (use --ignore-daemonsets to ignore): kube-system/calico-node-bwss2, kube-system/kube-proxy-rzcc9, cannot delete Pods with local storage (use --delete-emptydir-data to override): drain-t/comdir], continuing command...
+```
+
+Repare na primeira linha: **o drain fez o cordon antes de falhar**. O nó fica `Ready,SchedulingDisabled` mesmo sem nenhum Pod ter saído.
 
 ## Comandos essenciais
 
@@ -67,7 +74,7 @@ kubectl get nodes
 kubectl get pods -A -o wide --field-selector spec.nodeName=node01
 ```
 
-`--delete-local-data` aparece em material antigo. Foi substituído por `--delete-emptydir-data` e não existe mais. <!-- VERIFICAR: versão exata em que --delete-local-data foi removido -->
+`--delete-local-data` aparece em material antigo. Foi substituído por `--delete-emptydir-data` e não existe mais: no kubectl v1.37 a resposta é `error: unknown flag: --delete-local-data`.
 
 ## YAML de referência
 
@@ -87,7 +94,16 @@ spec:
       app: web                  # precisa bater com os labels dos Pods
 ```
 
-Com 2 réplicas de `web` e `minAvailable: 2`, o drain nunca consegue despejar nenhuma: ele fica tentando até o `--timeout`.
+Com 2 réplicas de `web` e `minAvailable: 2`, o drain nunca consegue despejar nenhuma: ele fica tentando até o `--timeout`. Saída real, com `ALLOWED DISRUPTIONS 0`:
+
+```console
+$ kubectl get pdb -n pdb-t
+NAME      MIN AVAILABLE   MAX UNAVAILABLE   ALLOWED DISRUPTIONS   AGE
+web-pdb   2               N/A               0                     0s
+$ kubectl drain w1 --ignore-daemonsets --timeout=30s
+error when evicting pods/"web-69c6f74b8b-ngwkr" -n "pdb-t" (will retry after 5s): Cannot evict pod as it would violate the pod's disruption budget.
+error when evicting pods/"web-69c6f74b8b-ngwkr" -n "pdb-t": global timeout reached: 30s
+```
 
 ```bash
 # Criar o PDB de forma imperativa
@@ -110,6 +126,7 @@ kubectl create poddisruptionbudget web-pdb --selector=app=web --min-available=2 
 - **Usar `--force` sem ler.** Ele apaga Pods sem controller para sempre. Se o enunciado pede para "não perder" um Pod, `--force` é a resposta errada.
 - **Drain não é delete do nó.** O nó continua no cluster. `kubectl delete node` é outra coisa.
 - **Esquecer o `uncordon`** depois da manutenção, quando o enunciado pede para o nó voltar a receber Pods.
+- **Drain que falhou já deixou o nó em cordon.** Se o drain parou num erro e você desistiu dele, o nó continua `SchedulingDisabled`. Rode `kubectl uncordon` se não for continuar a manutenção.
 - **Achar que uncordon traz os Pods de volta.** Não traz. Só Pods criados depois podem cair no nó.
 - **Drain travado por PDB.** Não é bug, é o PDB funcionando. Leia a mensagem (`Cannot evict pod as it would violate the pod's disruption budget`) e decida: esperar, escalar o Deployment ou ajustar o PDB, conforme o enunciado.
 - **Contexto.** O nome `node01` existe em vários clusters da prova. Confirme o contexto antes.

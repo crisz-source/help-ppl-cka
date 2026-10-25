@@ -1,6 +1,6 @@
 # Services e Endpoints
 
-> **Versão do Kubernetes:** v1.36 · **Última revisão:** 2026-10-23 · **Domínio:** Services & Networking (20%)
+> **Versão do Kubernetes:** v1.37 · **Última revisão:** 2026-10-25 · **Domínio:** Services & Networking (20%)
 
 ## O que é
 
@@ -150,14 +150,14 @@ endpoints:
 ## Pegadinhas da prova
 
 - **Selector errado = Service sem endpoints.** O selector precisa bater com os labels do **template do Pod**, não com os labels do Deployment. Confira com `kubectl describe svc` (campo `Endpoints`).
-- **`kubectl create service` inventa o selector** `app=<nome-do-service>`. Se o Deployment usa outro label, o Service fica vazio. Prefira `kubectl expose`, ou gere o YAML e corrija o selector.
+- **`kubectl create service` inventa o selector** `app=<nome-do-service>`. No teste, `kubectl create service nodeport frontend2 ...` ganhou `{"app":"frontend2"}`. Se o Deployment usa outro label, o Service fica vazio. Prefira `kubectl expose`, ou gere o YAML e corrija o selector.
 - **`port` × `targetPort` × `nodePort`.** `port` é a do Service, `targetPort` é a do container, `nodePort` é a do nó. Omitir `targetPort` faz ele assumir o valor de `port`.
-- **NodePort fora da faixa** (ex.: 8080) é rejeitado: o padrão é 30000-32767.
+- **NodePort fora da faixa** (ex.: 8080) é rejeitado: `spec.ports[0].nodePort: Invalid value: 8080: provided port is not in the valid range. The range of valid ports is 30000-32767`.
 - **Namespace.** O Service só seleciona Pods do **próprio namespace**. E o `kubectl expose` sem `-n` cria em `default`.
 - **Ping no IP do Service não responde**, e isso é normal. Teste com `wget`/`curl` na porta.
 - **Pods não Ready** não entram nos endpoints. Se o selector está certo e mesmo assim não há endpoints, olhe a readinessProbe.
 - **LoadBalancer em cluster kubeadm** fica com `EXTERNAL-IP <pending>` para sempre, porque não há cloud controller. Não é erro seu. Se a questão pedir acesso externo num cluster assim, use NodePort.
-- **`kubectl get endpoints` mostra aviso de depreciação.** Ainda funciona e serve para conferir. Em YAML novo, use EndpointSlice.
+- **`kubectl get endpoints` mostra aviso de depreciação** (`Warning: v1 Endpoints is deprecated in v1.33+; use discovery.k8s.io/v1 EndpointSlice`). Ainda funciona e serve para conferir. Em YAML novo, use EndpointSlice.
 
 ## Pratique
 
@@ -188,20 +188,20 @@ kubectl run tmp -n shop --image=busybox:1.36 --rm -it --restart=Never -- wget -q
 curl http://<IP-de-um-nó>:30080                         # de fora, ou de um nó
 ```
 
-Saída esperada (ilustrativa: nomes, IPs e idades mudam no seu cluster):
+Saída real (v1.37.1, Pods com a imagem de teste `agnhost` escutando em 8080):
 
 ```console
 $ kubectl get svc frontend-svc -n shop
-NAME           TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
-frontend-svc   NodePort   10.96.120.15   <none>        80:30080/TCP   12s
+NAME           TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+frontend-svc   NodePort   10.107.102.39   <none>        80:30080/TCP   1s
 $ kubectl get endpointslices -n shop -l kubernetes.io/service-name=frontend-svc
-NAME                 ADDRESSTYPE   PORTS   ENDPOINTS               AGE
-frontend-svc-7x2kq   IPv4          8080    10.244.1.5,10.244.2.7   12s
+NAME                 ADDRESSTYPE   PORTS   ENDPOINTS                     AGE
+frontend-svc-n777v   IPv4          8080    10.244.190.68,10.244.80.209   1s
 ```
 
 ??? tip "No lab / Killercoda"
 
     - No lab Azure: libere a porta 30080 no NSG das VMs e acesse pelo IP público de um worker. Depois acesse pelo IP do **outro** worker, mesmo sem Pod nele. Por padrão (`externalTrafficPolicy: Cluster`), qualquer nó encaminha.
-    - Mude para `externalTrafficPolicy: Local` e repita: agora só o nó que tem Pod responde.
+    - Mude para `externalTrafficPolicy: Local` e repita: agora só o nó que tem Pod responde. No teste, com o único Pod no `w1`, o NodePort respondeu `200` pelos dois workers em `Cluster`; em `Local`, só pelo `w1`.
     - Quebre o selector de propósito (`kubectl edit svc`) e veja os endpoints sumirem. Depois coloque uma readinessProbe que falha e observe o mesmo efeito.
-    - Em um nó, rode `iptables-save | grep frontend-svc` (ou `nft list ruleset | grep frontend`, se o kube-proxy estiver em modo nftables) para ver as regras que o kube-proxy criou. Descubra o modo com `kubectl -n kube-system get cm kube-proxy -o yaml | grep mode`. <!-- VERIFICAR: status do modo IPVS (há proposta de depreciação). Na v1.36.4, o `kube-proxy --help` ainda lista ipvs sem marca de depreciado; conferir nas release notes -->
+    - Em um nó, rode `iptables-save | grep frontend-svc` (ou `nft list ruleset | grep frontend`, se o kube-proxy estiver em modo nftables) para ver as regras que o kube-proxy criou. Descubra o modo com `kubectl -n kube-system get cm kube-proxy -o yaml | grep mode` (no lab kubeadm: `mode: iptables`). Na v1.37.1, o `kube-proxy --help` lista os modos `iptables` (padrão), `ipvs` e `nftables`, sem marcar o IPVS como depreciado.

@@ -1,6 +1,6 @@
 # Upgrade com kubeadm
 
-> **Versão do Kubernetes:** v1.36 → v1.37 (lab criado em v1.36 e atualizado para v1.37) · **Última revisão:** 2026-10-23 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
+> **Versão do Kubernetes:** v1.36 → v1.37 (upgrade real do lab: v1.36.5 → v1.37.1, 1 control plane + 2 workers) · **Última revisão:** 2026-10-25 · **Domínio:** Cluster Architecture, Installation & Configuration (25%)
 
 ## O que é
 
@@ -26,7 +26,7 @@ O `kubeadm upgrade apply` também atualiza os addons (CoreDNS e kube-proxy) e, p
 
 [![Upgrade com kubeadm](../assets/diagramas/01-upgrade-kubeadm.svg)](../assets/diagramas/01-upgrade-kubeadm.svg "Abrir o diagrama em tamanho real")
 
-**Version skew**: o kubelet pode ficar algumas versões minor **atrás** do kube-apiserver (nunca à frente). Por isso atualizar o control plane antes dos workers não quebra nada. <!-- VERIFICAR: limite atual de skew kubelet ↔ apiserver na página "Version Skew Policy" -->
+**Version skew**: o kubelet pode ficar até **três** versões minor **atrás** do kube-apiserver, nunca à frente (política *Version Skew Policy*, em vigor desde a v1.28). Por isso atualizar o control plane antes dos workers não quebra nada. No lab, com o `cp` já em v1.37.1 e os workers ainda em v1.36.5, os três nós continuaram `Ready`.
 
 ## Comandos essenciais
 
@@ -44,7 +44,10 @@ sudo -i
 **1. Apontar o apt para o novo minor.** Os repositórios `pkgs.k8s.io` são separados por versão minor. Sem esse passo, o apt não enxerga a versão nova.
 
 ```bash
-# Ver qual minor o repositório aponta hoje
+# Achar o arquivo do repositório (a documentação usa kubernetes.list, mas o nome varia)
+grep -rl pkgs.k8s.io /etc/apt/sources.list.d/
+
+# Ver qual minor ele aponta hoje
 cat /etc/apt/sources.list.d/kubernetes.list
 # deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.36/deb/ /
 
@@ -52,6 +55,8 @@ cat /etc/apt/sources.list.d/kubernetes.list
 sed -i 's#/v1.36/#/v1.37/#' /etc/apt/sources.list.d/kubernetes.list
 apt-get update
 ```
+
+No lab, o arquivo se chamava `k8s.list`, e o `cat .../kubernetes.list` respondeu `No such file or directory`. O `grep -rl` acha o arquivo certo em qualquer máquina.
 
 **2. Atualizar o kubeadm:**
 
@@ -73,8 +78,45 @@ kubeadm version   # confirme a versão nova
 # Mostra versão atual, versão de destino e o que será alterado
 kubeadm upgrade plan
 
-# Aplica: atualiza static Pods, addons e certificados
+# Aplica: atualiza static Pods, addons e certificados (pede confirmação "y"; --yes pula a pergunta)
 kubeadm upgrade apply v1.37.Y
+```
+
+Trecho real do `kubeadm upgrade plan` no lab (v1.36.5 → v1.37.1). Repare que o etcd e o CoreDNS também mudam de versão:
+
+```console
+$ kubeadm upgrade plan
+[upgrade/versions] Cluster version: 1.36.5
+[upgrade/versions] kubeadm version: v1.37.1
+[upgrade/versions] Target version: v1.37.1
+
+Components that must be upgraded manually after you have upgraded the control plane with 'kubeadm upgrade apply':
+COMPONENT   NODE      CURRENT   TARGET
+kubelet     cp        v1.36.5   v1.37.1
+kubelet     w1        v1.36.5   v1.37.1
+kubelet     w2        v1.36.5   v1.37.1
+
+Upgrade to the latest stable version:
+
+COMPONENT                 NODE      CURRENT   TARGET
+kube-apiserver            cp        v1.36.5   v1.37.1
+kube-controller-manager   cp        v1.36.5   v1.37.1
+kube-scheduler            cp        v1.36.5   v1.37.1
+kube-proxy                          1.36.5    v1.37.1
+CoreDNS                             v1.14.2   v1.14.6
+etcd                      cp        3.6.8-0   3.7.0-0
+
+You can now apply the upgrade by executing the following command:
+
+	kubeadm upgrade apply v1.37.1
+```
+
+O fim do `apply`:
+
+```console
+[upgrade] SUCCESS! A control plane node of your cluster was upgraded to "v1.37.1".
+
+[upgrade] Now please proceed with upgrading the rest of the nodes by following the right order.
 ```
 
 Em clusters com **mais de um control plane**, nos demais use `kubeadm upgrade node` (e não `apply`).
@@ -225,6 +267,25 @@ A página tem abas por gerenciador de pacotes (*Ubuntu, Debian or HypriotOS* × 
 kubectl get nodes                          # VERSION 1.37.Y e STATUS Ready (sem SchedulingDisabled)
 kubectl get pods -n kube-system            # control plane, CoreDNS e kube-proxy rodando
 kubectl version                            # Server Version: v1.37.Y
+```
+
+Resultado real no lab, depois dos três nós:
+
+```console
+$ kubectl get nodes
+NAME   STATUS   ROLES           AGE   VERSION
+cp     Ready    control-plane   80m   v1.37.1
+w1     Ready    <none>          79m   v1.37.1
+w2     Ready    <none>          79m   v1.37.1
+$ kubectl version
+Client Version: v1.37.1
+Kustomize Version: v5.8.1
+Server Version: v1.37.1
+$ sudo grep image: /etc/kubernetes/manifests/*.yaml
+/etc/kubernetes/manifests/etcd.yaml:    image: registry.k8s.io/etcd:3.7.0-0
+/etc/kubernetes/manifests/kube-apiserver.yaml:    image: registry.k8s.io/kube-apiserver:v1.37.1
+/etc/kubernetes/manifests/kube-controller-manager.yaml:    image: registry.k8s.io/kube-controller-manager:v1.37.1
+/etc/kubernetes/manifests/kube-scheduler.yaml:    image: registry.k8s.io/kube-scheduler:v1.37.1
 ```
 
 ??? tip "No lab / Killercoda"
