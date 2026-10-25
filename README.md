@@ -2,13 +2,13 @@
 
 Estudo em público para a certificação **CKA (Certified Kubernetes Administrator)**, em português do Brasil. Gratuito e open source.
 
-O mesmo conteúdo (`docs/`) é publicado em dois layouts, mais uma landing:
+O site publicado é o layout clássico. O mesmo conteúdo (`docs/`) também tem dois layouts alternativos, que o CI compila mas **não publica**:
 
 | Layout | Ferramenta | Endereço |
 |---|---|---|
-| Clássico | MkDocs Material | <https://crisz-source.github.io/help-ppl-cka/> |
-| Interativo (terminal animado, progresso de estudo) | Astro Starlight, em `v2/` | <https://crisz-source.github.io/help-ppl-cka/v2/> |
-| Landing v3 (design do Figma; os links levam ao v2) | Astro, em `v3/` | <https://crisz-source.github.io/help-ppl-cka/v3/> |
+| Clássico (publicado) | MkDocs Material | <https://crisz-source.github.io/help-ppl-cka/> |
+| Interativo (terminal animado, progresso de estudo) | Astro Starlight, em `v2/` | não publicado (só local) |
+| Landing v3 (design do Figma; os links levam ao v2) | Astro, em `v3/` | não publicado (só local) |
 
 ## Rodar localmente
 

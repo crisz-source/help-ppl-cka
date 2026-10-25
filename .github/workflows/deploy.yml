@@ -27,7 +27,8 @@ jobs:
       - run: pip install -r requirements.txt
       # --strict: link quebrado ou página fora do nav falha o build em vez de publicar errado
       - run: mkdocs build --strict
-      # layout 2 (Astro/Starlight em v2/): mesmo conteúdo de docs/, publicado em /v2/
+      # layouts 2 (v2/) e 3 (v3/): só compilados, para o build pegar erro cedo; NÃO são publicados.
+      # Para publicar de novo, volte as linhas "cp -r vN/dist site/vN".
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
@@ -37,13 +38,10 @@ jobs:
         working-directory: v2
       - run: npm run build
         working-directory: v2
-      - run: cp -r v2/dist site/v2
-      # layout 3 (landing do Figma em v3/): só a página inicial, publicada em /v3/; os links levam ao /v2/
       - run: npm ci
         working-directory: v3
       - run: npm run build
         working-directory: v3
-      - run: cp -r v3/dist site/v3
       # repo privado no plano Free não tem Pages: só valida o build, sem publicar
       - if: ${{ !github.event.repository.private }}
         uses: actions/configure-pages@v6
