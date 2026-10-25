@@ -53,3 +53,11 @@ $ kubectl get svc web-svc
 NAME      TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
 web-svc   ClusterIP   10.96.45.12    <none>        80/TCP    5m
 ```
+
+## Contribuir
+
+Correções e sugestões são bem-vindas: veja o [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Licença
+
+[MIT](LICENSE).
