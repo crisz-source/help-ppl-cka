@@ -10,11 +10,7 @@ Um quarto da prova. É o domínio de quem **opera** o cluster: quem pode fazer o
 | Manage the lifecycle of Kubernetes clusters | [Upgrade com kubeadm](upgrade-kubeadm.md), [Drain, cordon e uncordon](drain-cordon-uncordon.md) |
 | Use Helm and Kustomize to install cluster components | [Helm e Kustomize](helm-kustomize.md) |
 | *(fora da lista explícita atual, ver aviso na página)* | [Backup e restore do etcd](etcd-backup-restore.md) |
-| Prepare underlying infrastructure for installing a Kubernetes cluster | *a fazer* |
-| Create and manage Kubernetes clusters using kubeadm | [Certificados com kubeadm](kubeadm-certs.md) · *criação do cluster: a fazer* |
-| Implement and configure a highly-available control plane | *a fazer* |
-| Understand extension interfaces (CNI, CSI, CRI, etc.) | *a fazer* |
-| Understand CRDs, install and configure operators | *a fazer* |
+| Create and manage Kubernetes clusters using kubeadm | [Adicionar um nó com kubeadm join](kubeadm-join.md), [Certificados com kubeadm](kubeadm-certs.md) |
 
 <!-- VERIFICAR: conferir a lista acima contra a versão atual do currículo em https://github.com/cncf/curriculum -->
 
@@ -23,6 +19,7 @@ Um quarto da prova. É o domínio de quem **opera** o cluster: quem pode fazer o
 1. **RBAC**: aparece em quase toda prova e é rápido de pontuar.
 2. **Drain/cordon/uncordon**: pré-requisito do upgrade.
 3. **Upgrade com kubeadm**: tarefa longa, vale treinar até virar rotina.
-4. **Certificados com kubeadm**: complementa o upgrade, que renova os certificados, e é base para Troubleshooting do control plane.
-5. **Helm e Kustomize**: comandos curtos, fáceis de errar por detalhe.
-6. **Backup e restore do etcd**: mesmo fora da lista explícita, ensina a anatomia do control plane e ajuda no Troubleshooting.
+4. **kubeadm join**: dois comandos; o que pesa é reconhecer os erros (token vencido, hash errado).
+5. **Certificados com kubeadm**: complementa o upgrade, que renova os certificados, e é base para Troubleshooting do control plane.
+6. **Helm e Kustomize**: comandos curtos, fáceis de errar por detalhe.
+7. **Backup e restore do etcd**: mesmo fora da lista explícita, ensina a anatomia do control plane e ajuda no Troubleshooting.

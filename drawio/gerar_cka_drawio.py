@@ -241,6 +241,42 @@ def kubeadm_certs() -> Pagina:
     return p
 
 
+def kubeadm_join() -> Pagina:
+    # Origem: docs/01-cluster-architecture/kubeadm-join.md (página nova, sem mermaid anterior).
+    # Control plane à esquerda gera o comando; o nó novo à direita executa as três etapas do join.
+    p = Pagina("kubeadm join: um nó entrando no cluster", 1180, 800)
+    p.cabecalho("kubeadm join: um nó entrando no cluster",
+                "O control plane gera o comando; o nó novo prova que fala com o cluster certo e pede um certificado")
+    p.fronteira(20, 90, 430, 560, "Control plane", "k8s", tracejada=False, icone="master")
+    criar = p.CMD(235, 165, 370, 56, "kubeadm token create<br>--print-join-command")
+    api = p.I("api", 235, 290, "kube-apiserver", pos="right")
+    info = p.B(235, 450, 370, 76, "ConfigMap cluster-info (kube-public)<br>CA do cluster + assinatura do token",
+               "conceito")
+    csr = p.B(235, 575, 370, 56, "CSR aprovado automaticamente<br>(grupo system:bootstrappers)", "conceito")
+
+    p.fronteira(700, 90, 460, 560, "Nó novo", "k8s", tracejada=False, icone="node")
+    join = p.CMD(930, 165, 420, 76, "kubeadm join &lt;cp&gt;:6443<br>--token abcdef.0123...<br>"
+                                   "--discovery-token-ca-cert-hash sha256:...")
+    pre = p.B(930, 285, 400, 56, "1. preflight<br>portas, arquivos, kubelet, swap")
+    desc = p.B(930, 385, 400, 56, "2. descoberta<br>confere o token e o hash da CA")
+    boot = p.B(930, 485, 400, 56, "3. TLS bootstrap<br>o kubelet envia um CSR")
+    ok = p.B(930, 590, 400, 56, "kubelet.conf gravado → nó Ready", "ok")
+
+    p.seta(criar, join, "copie o comando")
+    p.seta(criar, api, "cria o token", saida=(0.5, 1), entrada=(0.5, 0))
+    p.seta(api, info, "o token assina o cluster-info", saida=(0.5, 1), entrada=(0.5, 0))
+    for a, b in ((join, pre), (pre, desc), (desc, boot), (boot, ok)):
+        p.seta(a, b, saida=(0.5, 1), entrada=(0.5, 0))
+    p.seta(desc, info, "lê", saida=(0, 0.5), entrada=(1, 0.5), pontos=[(560, 385), (560, 450)])
+    p.seta(boot, csr, "CSR", saida=(0, 0.5), entrada=(1, 0.5), pontos=[(620, 485), (620, 575)])
+
+    p.texto(30, 668, 600, 24, "<b>Se a etapa 2 falhar</b>", tamanho=14, cor="#c92a2a")
+    p.B(310, 735, 560, 64, "Token apagado ou vencido: tenta por 5 min e desiste<br>"
+                           "could not find a JWS signature ... for token ID", "erro")
+    p.B(890, 735, 520, 64, "Hash da CA errado: falha na hora<br>none of the public keys ... are pinned", "erro")
+    return p
+
+
 def drain() -> Pagina:
     # Origem: docs/01-cluster-architecture/drain-cordon-uncordon.md (diagrama de sequência).
     p = Pagina("kubectl drain: a sequência", 1200, 600)
@@ -784,6 +820,7 @@ DIAGRAMAS = {
     "01-rbac": rbac,
     "01-upgrade-kubeadm": upgrade_kubeadm,
     "01-kubeadm-certs": kubeadm_certs,
+    "01-kubeadm-join": kubeadm_join,
     "01-drain-cordon-uncordon": drain,
     "01-etcd-backup-restore": etcd_backup_restore,
     "01-helm-kustomize": helm_kustomize,

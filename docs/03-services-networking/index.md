@@ -8,7 +8,6 @@ Um quinto da prova. É o domínio de **como o tráfego chega aos Pods**: endere�
 |---|---|
 | Use ClusterIP, NodePort, LoadBalancer service types and endpoints | [Services e Endpoints](services-endpoints.md) |
 | Understand and use CoreDNS | [DNS do cluster](dns.md) |
-| Understand connectivity between Pods | *a fazer* |
 | Define and enforce Network Policies | [NetworkPolicy](network-policy.md) |
 | Use the Gateway API to manage Ingress traffic | [Gateway API](gateway-api.md) |
 | Know how to use Ingress controllers and Ingress resources | [Ingress](ingress.md) |
@@ -19,6 +18,5 @@ Um quinto da prova. É o domínio de **como o tráfego chega aos Pods**: endere�
 
 1. **Services e Endpoints**: base de todo o resto. Ingress, Gateway e DNS apontam para Services.
 2. **DNS do cluster**: como os Pods acham os Services pelo nome.
-3. **Conectividade entre Pods / CNI**: o modelo de rede "todo Pod fala com todo Pod".
-4. **NetworkPolicy**: restringir esse "todo mundo fala com todo mundo".
-5. **Ingress** e **Gateway API**: tráfego HTTP vindo de fora.
+3. **NetworkPolicy**: por padrão todo Pod fala com todo Pod; a NetworkPolicy restringe isso.
+4. **Ingress** e **Gateway API**: tráfego HTTP vindo de fora.

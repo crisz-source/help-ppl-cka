@@ -49,6 +49,7 @@ nav:
       - 01-cluster-architecture/index.md
       - RBAC: 01-cluster-architecture/rbac.md
       - Upgrade com kubeadm: 01-cluster-architecture/upgrade-kubeadm.md
+      - Adicionar um nó com kubeadm join: 01-cluster-architecture/kubeadm-join.md
       - Certificados com kubeadm: 01-cluster-architecture/kubeadm-certs.md
       - Drain, cordon e uncordon: 01-cluster-architecture/drain-cordon-uncordon.md
       - Backup e restore do etcd: 01-cluster-architecture/etcd-backup-restore.md

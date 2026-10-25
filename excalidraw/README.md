@@ -14,3 +14,4 @@ Abrir com a extensão Excalidraw do VS Code. Cada diagrama tem um script gerador
 | `09-troubleshooting.excalidraw` | `python gerar_09_troubleshooting.py 09-troubleshooting.excalidraw` | Sintoma → onde olhar → causa típica, e o roteiro de primeira olhada em 5 passos |
 | `10-bak-manifestos.excalidraw` | `python gerar_10_bak_manifestos.py 10-bak-manifestos.excalidraw` | Teste real: um `.bak` na pasta de manifestos troca o static Pod e faz a edição no `.yaml` ser ignorada |
 | `11-diagramas-drawio.excalidraw` | `python gerar_11_diagramas_drawio.py 11-diagramas-drawio.excalidraw` | Do .drawio ao SVG em docs/assets e às duas versões do site |
+| `12-kubeadm-join.excalidraw` | `python gerar_12_kubeadm_join.py 12-kubeadm-join.excalidraw` | kubeadm join: o comando gerado no control plane, a descoberta pelo cluster-info, o CSR do kubelet e os dois erros clássicos |
