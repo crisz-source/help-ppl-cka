@@ -26,6 +26,121 @@ kubectl api-resources --namespaced=false             # recursos do cluster intei
 
 `kubectl explain` é a documentação offline: serve quando você lembra do objeto, mas não do nome exato do campo.
 
+### Questão: salvar a saída do `explain` num arquivo
+
+Relato de quem já fez a CKA: caiu uma questão pedindo a documentação de um campo pelo `kubectl explain`, salvando **só um trecho** num caminho específico. É rápida, mas quase nenhum simulado treina. O que cobrar de você:
+
+```bash
+kubectl explain deployment.spec.strategy > /opt/strategy.txt                 # um campo
+kubectl explain pod.spec.securityContext | sed -n '/^FIELDS:/,$p' > /opt/campos.txt   # só a lista de campos
+kubectl explain pod.spec.containers.livenessProbe --recursive --max-depth=1  # só os nomes, 1 nível
+kubectl explain ippools.spec.vxlanMode                                       # funciona com CRD também
+kubectl explain deployment -o plaintext-openapiv2                            # formato antigo (OpenAPI v2)
+```
+
+Saída real (v1.37.1):
+
+```console
+$ kubectl explain deployment.spec.strategy
+GROUP:      apps
+KIND:       Deployment
+VERSION:    v1
+
+FIELD: strategy <DeploymentStrategy>
+
+
+DESCRIPTION:
+    The deployment strategy to use to replace existing pods with new ones.
+    DeploymentStrategy describes how to replace existing pods with new ones.
+    
+FIELDS:
+  rollingUpdate	<RollingUpdateDeployment>
+    Rolling update config params. Present only if DeploymentStrategyType =
+    RollingUpdate.
+
+  type	<string>
+  enum: Recreate, RollingUpdate
+    Type of deployment. Can be "Recreate" or "RollingUpdate". Default is
+    RollingUpdate.
+    
+    Possible enum values:
+     - `"Recreate"` Kill all existing pods before creating new ones.
+     - `"RollingUpdate"` Replace the old ReplicaSets by new one using rolling
+    update i.e gradually scale down the old ReplicaSets and scale up the new
+    one.
+
+```
+
+O "trecho" quase sempre é uma das partes que o `explain` já separa: `DESCRIPTION:` ou `FIELDS:`. Para cortar a partir de uma delas, `sed -n '/^FIELDS:/,$p'` (da linha `FIELDS:` até o fim):
+
+```console
+$ kubectl explain pod.spec.securityContext | sed -n '/^FIELDS:/,$p' > /tmp/campos.txt
+$ head -5 /tmp/campos.txt
+FIELDS:
+  appArmorProfile	<AppArmorProfile>
+    appArmorProfile is the AppArmor options to use by the containers in this
+    pod. Note that this field cannot be set when spec.os.name is windows.
+
+$ wc -l /tmp/campos.txt
+137 /tmp/campos.txt
+```
+
+Para só a descrição, sem a lista de campos: `sed -n '/^DESCRIPTION:/,/^FIELDS:/p'`. Se a questão pedir só os nomes dos campos, `--recursive --max-depth=1` resolve sem `sed`:
+
+```console
+$ kubectl explain pod.spec.containers.livenessProbe --recursive --max-depth=1
+KIND:       Pod
+VERSION:    v1
+
+FIELD: livenessProbe <Probe>
+
+
+DESCRIPTION:
+    Periodic probe of container liveness. Container will be restarted if the
+    probe fails. Cannot be updated. More info:
+    https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+    Probe describes a health check to be performed against a container to
+    determine whether it is alive or ready to receive traffic.
+    
+FIELDS:
+  exec	<ExecAction>
+  failureThreshold	<integer>
+  grpc	<GRPCAction>
+  httpGet	<HTTPGetAction>
+  initialDelaySeconds	<integer>
+  periodSeconds	<integer>
+  successThreshold	<integer>
+  tcpSocket	<TCPSocketAction>
+  terminationGracePeriodSeconds	<integer>
+  timeoutSeconds	<integer>
+```
+
+Cuidados:
+
+- **Campo com nome errado** dá erro, mas o cabeçalho sai antes, e com `>` o arquivo fica criado só com ele. Confira o arquivo depois de salvar:
+
+    ```console
+    $ kubectl explain pod.spec.naoexiste
+    KIND:       Pod
+    VERSION:    v1
+
+    error: field "naoexiste" does not exist
+    ```
+
+- **CRD também tem `explain`**, desde que o schema esteja no CRD. No lab, `kubectl explain ippools.spec.vxlanMode` (Calico) mostra `GROUP: crd.projectcalico.org` e o `ENUM: Never, Always, CrossSubnet`.
+- **`-o plaintext-openapiv2`** é o formato antigo (cabeçalho `RESOURCE:` em vez de `FIELD:`, tipos como `<Object>`). Só use se o enunciado pedir esse formato.
+- **Caminho de destino:** se o diretório não existir, o `>` falha com `No such file or directory`. Crie com `mkdir -p` antes.
+
+??? example "Treino no estilo da prova"
+    > Using `kubectl explain`, save the documentation of the `spec.strategy.rollingUpdate.maxSurge` field of a Deployment to `/opt/course/maxsurge.txt`. Then save only the `FIELDS` section of `pod.spec.securityContext` to `/opt/course/sc-fields.txt`.
+
+    ```bash
+    mkdir -p /opt/course
+    kubectl explain deployment.spec.strategy.rollingUpdate.maxSurge > /opt/course/maxsurge.txt
+    kubectl explain pod.spec.securityContext | sed -n '/^FIELDS:/,$p' > /opt/course/sc-fields.txt
+    head -3 /opt/course/sc-fields.txt          # primeira linha: FIELDS:
+    ```
+
 ## Ver objetos
 
 ```bash

@@ -190,6 +190,289 @@ Políticas padrão (o ponto de partida de "nega tudo e libera o necessário"):
         - Ingress
     ```
 
+## Receitas prontas (testadas no lab)
+
+O repositório [kubernetes-network-policy-recipes](https://github.com/ahmetb/kubernetes-network-policy-recipes), de Ahmet Alp Balkan, reúne os casos de NetworkPolicy que mais aparecem na prática. Ele **não está na lista de sites liberados na prova**: estude antes. Abaixo, a minha versão de cada receita, rodada no lab (kubeadm v1.37.1, Calico v3.33.0) com um cenário fixo:
+
+- namespace `rec`: servidores `web` (`app=web`, portas 80 e 5000) e `api` (`app=api`); clientes `livre` (`app=cli`), `front` (`papel=frontend`) e `monitor` (`papel=monitor`);
+- namespace `outro` (label `equipe=outro`): clientes `livre` e `front`;
+- namespace `outro2` (sem label): cliente `livre`.
+
+Cada receita foi aplicada sozinha (a 02a, a 05 e a 08 junto com o deny-all que pedem), testada com `wget -T 3` a partir dos clientes e apagada antes da próxima. O repositório lista mais duas receitas de egress marcadas como "em breve", ainda sem conteúdo; a numeração pula do 12 para o 14.
+
+| Nº | Receita | O que faz o trabalho | O que o lab mostrou |
+|---|---|---|---|
+| 01 | Negar tudo para uma app | `podSelector` da app + `ingress: []` | `web` para de responder; `api`, no mesmo namespace, continua |
+| 02 | Limitar uma app a alguns Pods | `from: podSelector` | só `papel=frontend` do mesmo namespace chega; o `frontend` de **outro** namespace não |
+| 02a | Liberar tudo para uma app | `ingress: [{}]` | aplicada junto com a 01, libera tudo: políticas somam |
+| 03 | Negar tudo que não foi liberado no namespace | `podSelector: {}` + `ingress: []` | nenhum Pod do namespace recebe nada, nem de dentro dele |
+| 04 | Negar tráfego de outros namespaces | `from: [{podSelector: {}}]` | dentro do namespace passa; de fora, não |
+| 05 | Liberar uma app para todos os namespaces | `from: [{namespaceSelector: {}}]` | com a 03 aplicada, `web` atende todo mundo (inclusive o próprio namespace) e `api` segue fechada |
+| 06 | Liberar tudo de um namespace | `namespaceSelector` com label | só o namespace com `equipe=outro`; **o próprio namespace da app fica de fora** |
+| 07 | Liberar alguns Pods de outro namespace | `namespaceSelector` **e** `podSelector` no mesmo item | só `papel=frontend` do namespace `outro` |
+| 08 | Liberar clientes de fora do cluster | `from: []` com porta | o nó, que antes levava timeout, passa a chegar na porta 80; a 5000 continua fechada |
+| 09 | Liberar só uma porta | `ports` junto do `from` | o `monitor` chega na 5000 e não na 80 |
+| 10 | Vários seletores | itens separados no `from` (OU) | `frontend` ou `monitor` chegam; o resto não |
+| 11 | Negar egress de uma app | `policyTypes: [Egress]` + `egress: []` | nem o DNS resolve: `bad address 'web.rec'` |
+| 12 | Negar egress do namespace, menos DNS | `podSelector: {}` + só porta 53 | nada sai do namespace; o DNS resolve, mas a conexão leva timeout |
+| 14 | Negar egress para fora do cluster | porta 53 + `to: [{namespaceSelector: {}}]` | Pods do cluster respondem; `example.com` não |
+
+??? example "YAML de cada receita"
+
+    **01. Negar tudo para uma app**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: web-deny-all, namespace: rec}
+    spec:
+      podSelector: {matchLabels: {app: web}}
+      policyTypes: [Ingress]
+      ingress: []
+    ```
+
+    **02. Limitar uma app a alguns Pods**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: web-so-frontend, namespace: rec}
+    spec:
+      podSelector: {matchLabels: {app: web}}
+      policyTypes: [Ingress]
+      ingress:
+      - from: [{podSelector: {matchLabels: {papel: frontend}}}]
+    ```
+
+    **02a. Liberar tudo para uma app**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: web-allow-all, namespace: rec}
+    spec:
+      podSelector: {matchLabels: {app: web}}
+      policyTypes: [Ingress]
+      ingress: [{}]
+    ```
+
+    **03. Negar tudo que não foi liberado no namespace**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: default-deny-all, namespace: rec}
+    spec:
+      podSelector: {}
+      policyTypes: [Ingress]
+      ingress: []
+    ```
+
+    **04. Negar tráfego de outros namespaces**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: deny-from-other-namespaces, namespace: rec}
+    spec:
+      podSelector: {}
+      policyTypes: [Ingress]
+      ingress:
+      - from: [{podSelector: {}}]
+    ```
+
+    **05. Liberar uma app para todos os namespaces**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: web-allow-all-namespaces, namespace: rec}
+    spec:
+      podSelector: {matchLabels: {app: web}}
+      policyTypes: [Ingress]
+      ingress:
+      - from: [{namespaceSelector: {}}]
+    ```
+
+    **06. Liberar tudo de um namespace**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: web-allow-equipe-outro, namespace: rec}
+    spec:
+      podSelector: {matchLabels: {app: web}}
+      policyTypes: [Ingress]
+      ingress:
+      - from: [{namespaceSelector: {matchLabels: {equipe: outro}}}]
+    ```
+
+    **07. Liberar alguns Pods de outro namespace**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: web-allow-front-do-outro, namespace: rec}
+    spec:
+      podSelector: {matchLabels: {app: web}}
+      policyTypes: [Ingress]
+      ingress:
+      - from:
+        - namespaceSelector: {matchLabels: {equipe: outro}}
+          podSelector: {matchLabels: {papel: frontend}}
+    ```
+
+    **08. Liberar clientes de fora do cluster**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: web-allow-external, namespace: rec}
+    spec:
+      podSelector: {matchLabels: {app: web}}
+      policyTypes: [Ingress]
+      ingress:
+      - ports: [{port: 80}]
+        from: []
+    ```
+
+    **09. Liberar só uma porta**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: web-allow-5000-monitor, namespace: rec}
+    spec:
+      podSelector: {matchLabels: {app: web}}
+      policyTypes: [Ingress]
+      ingress:
+      - from: [{podSelector: {matchLabels: {papel: monitor}}}]
+        ports: [{port: 5000, protocol: TCP}]
+    ```
+
+    **10. Vários seletores**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: web-allow-front-ou-monitor, namespace: rec}
+    spec:
+      podSelector: {matchLabels: {app: web}}
+      policyTypes: [Ingress]
+      ingress:
+      - from:
+        - podSelector: {matchLabels: {papel: frontend}}
+        - podSelector: {matchLabels: {papel: monitor}}
+    ```
+
+    **11. Negar egress de uma app**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: cli-deny-egress, namespace: rec}
+    spec:
+      podSelector: {matchLabels: {app: cli}}
+      policyTypes: [Egress]
+      egress: []
+    ```
+
+    **12. Negar egress do namespace, menos DNS**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: default-deny-egress, namespace: rec}
+    spec:
+      podSelector: {}
+      policyTypes: [Egress]
+      egress:
+      - ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
+    ```
+
+    **14. Negar egress para fora do cluster**
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata: {name: cli-deny-external-egress, namespace: rec}
+    spec:
+      podSelector: {matchLabels: {app: cli}}
+      policyTypes: [Egress]
+      egress:
+      - ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
+      - to: [{namespaceSelector: {}}]
+    ```
+
+    A 02a, a 05 e a 08 foram testadas junto com o deny-all da 01 (a 02a) ou da 03 (a 05 e a 08).
+
+??? example "Saída completa do teste"
+
+    ```console
+    == 00 sem política
+      rec/livre -> web                   ok (web-80)
+      outro2/livre -> web                ok (web-80)
+      nó cp -> web (IP do Pod)          ok (web-80)
+    == 01 negar tudo para uma app
+      rec/front -> web                   BLOQUEADO (wget: download timed out)
+      rec/front -> api                   ok (api-80)
+    == 02 limitar uma app a alguns Pods
+      rec/front -> web                   ok (web-80)
+      rec/livre -> web                   BLOQUEADO (wget: download timed out)
+      outro/front -> web                 BLOQUEADO (wget: download timed out)
+    == 02a liberar tudo para uma app (por cima do 01)
+      rec/livre -> web                   ok (web-80)
+      outro2/livre -> web                ok (web-80)
+    == 03 negar tudo que não foi liberado no namespace
+      rec/livre -> web                   BLOQUEADO (wget: download timed out)
+      rec/livre -> api                   BLOQUEADO (wget: download timed out)
+      outro/livre -> api                 BLOQUEADO (wget: download timed out)
+    == 04 negar tráfego de outros namespaces
+      rec/livre -> web                   ok (web-80)
+      outro/livre -> web                 BLOQUEADO (wget: download timed out)
+      outro2/livre -> api                BLOQUEADO (wget: download timed out)
+    == 05 liberar uma app para todos os namespaces (com 03 aplicado)
+      outro2/livre -> web                ok (web-80)
+      rec/livre -> web                   ok (web-80)
+      outro2/livre -> api                BLOQUEADO (wget: download timed out)
+    == 06 liberar tudo de um namespace
+      outro/livre -> web                 ok (web-80)
+      outro2/livre -> web                BLOQUEADO (wget: download timed out)
+      rec/livre -> web                   BLOQUEADO (wget: download timed out)
+    == 07 liberar alguns Pods de outro namespace (E: um item só)
+      outro/front -> web                 ok (web-80)
+      outro/livre -> web                 BLOQUEADO (wget: download timed out)
+      rec/front -> web                   BLOQUEADO (wget: download timed out)
+    == 08 liberar clientes de fora do cluster (com 03 aplicado)
+      nó cp -> web, só com o 03        BLOQUEADO (curl exit 28)
+      nó cp -> web, com o 08            ok (web-80)
+      outro2/livre -> web:80             ok (web-80)
+      outro2/livre -> web:5000           BLOQUEADO (wget: download timed out)
+    == 09 liberar só uma porta
+      rec/monitor -> web:5000            ok (web-5000)
+      rec/monitor -> web:80              BLOQUEADO (wget: download timed out)
+      rec/front -> web:5000              BLOQUEADO (wget: download timed out)
+    == 10 vários seletores (OU: itens separados)
+      rec/front -> web                   ok (web-80)
+      rec/monitor -> web                 ok (web-80)
+      rec/livre -> web                   BLOQUEADO (wget: download timed out)
+    == 11 negar egress de uma app
+      rec/livre (app=cli) -> web         BLOQUEADO (wget: bad address 'web.rec')
+      rec/livre (app=cli) -> IP do web   BLOQUEADO (wget: download timed out)
+      rec/front -> web                   ok (web-80)
+    == 12 negar todo egress do namespace (liberando só DNS)
+      rec/front -> web                   BLOQUEADO (wget: download timed out)
+      rec/front -> example.com           BLOQUEADO (wget: download timed out)
+      outro/front -> web                 ok (web-80)
+    == 14 negar egress para fora do cluster
+      rec/livre (app=cli) -> web         ok (web-80)
+      rec/livre (app=cli) -> example.com BLOQUEADO (wget: download timed out)
+      rec/front -> example.com           ok (<!doctype html><html lang=en><head><meta charset=utf-8><link rel=icon href=data:,><meta name=viewport content="width=device-width,initial-scale=1"><title>Example Domain</title><style>html{color-scheme:light dark;background:light-dark(#eee,#222)}body{font:16px/1.6 system-ui,sans-serif;max-width:26em;margin:auto;padding:25vh 2em 2em;text-align:center}</style></head><body><p>This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.</p><script src=/s.js></script></body></html>)
+    == fim
+    ```
+
+    `BLOQUEADO (curl exit 28)` é o timeout do `curl` rodado no nó `cp`, fora dos Pods.
+
 ## Na documentação oficial
 
 - **Página principal:** *Network Policies*. Link: <https://kubernetes.io/docs/concepts/services-networking/network-policies/>

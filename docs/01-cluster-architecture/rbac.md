@@ -119,6 +119,171 @@ Use `--dry-run=client -o yaml` quando o enunciado pedir algo que os flags impera
       apiGroup: rbac.authorization.k8s.io
     ```
 
+## ServiceAccount nos Pods
+
+O RBAC diz **o que** a ServiceAccount pode fazer. Esta parte mostra **como um Pod usa** a ServiceAccount, assunto da página oficial *Configure Service Accounts for Pods*. Tudo abaixo foi rodado no lab (v1.37.1, namespace `sa-lab`).
+
+**Todo Pod tem uma ServiceAccount.** Sem `serviceAccountName`, ele usa a `default`, que existe em todo namespace, e recebe um token montado em `/var/run/secrets/kubernetes.io/serviceaccount`:
+
+```console
+$ kubectl -n sa-lab create serviceaccount app-sa
+serviceaccount/app-sa created
+$ kubectl -n sa-lab get serviceaccounts
+NAME      AGE
+app-sa    0s
+default   0s
+$ kubectl -n sa-lab get pod sem-sa -o jsonpath='{.spec.serviceAccountName}{"\n"}'
+default
+$ kubectl -n sa-lab exec sem-sa -- ls /var/run/secrets/kubernetes.io/serviceaccount
+ca.crt
+namespace
+token
+```
+
+O token não é um Secret: vem de um volume `projected`, com validade curta, que o kubelet renova sozinho:
+
+```console
+$ kubectl -n sa-lab get pod sem-sa -o yaml | sed -n '/^  volumes:/,/^status:/p'
+  volumes:
+  - name: kube-api-access-4ls6m
+    projected:
+      defaultMode: 420
+      sources:
+      - serviceAccountToken:
+          expirationSeconds: 3607
+          path: token
+      - configMap:
+          items:
+          - key: ca.crt
+            path: ca.crt
+          name: kube-root-ca.crt
+      - downwardAPI:
+          items:
+          - fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+            path: namespace
+status:
+```
+
+**Usar outra ServiceAccount** é um campo do `spec` do Pod:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata: {name: cliente, namespace: sa-lab}
+spec:
+  serviceAccountName: app-sa          # precisa existir antes do Pod
+  containers:
+  - name: c
+    image: curlimages/curl:8.11.1
+    command: [sleep, "3600"]
+```
+
+De dentro do Pod, o token autentica na API como `system:serviceaccount:sa-lab:app-sa`. Sem RBAC, só a autenticação passa; a ação é negada:
+
+```console
+$ kubectl -n sa-lab exec cliente -- sh -c 'TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token); curl -s --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt -H "Authorization: Bearer $TOKEN" https://kubernetes.default.svc/api/v1/namespaces/sa-lab/pods'
+{
+  "kind": "Status",
+  "apiVersion": "v1",
+  "metadata": {},
+  "status": "Failure",
+  "message": "pods is forbidden: User \"system:serviceaccount:sa-lab:app-sa\" cannot list resource \"pods\" in API group \"\" in the namespace \"sa-lab\"",
+  "reason": "Forbidden",
+  "details": {
+    "kind": "pods"
+  },
+  "code": 403
+}
+```
+
+Com `kubectl create role pod-reader --verb=get,list --resource=pods` e um RoleBinding para `sa-lab:app-sa`, a mesma chamada passa a devolver a lista (`"kind": "PodList"`).
+
+**Trocar a ServiceAccount** de um Pod que já existe não funciona: o campo é imutável. Em Deployment funciona, porque o template muda e os Pods são recriados:
+
+```console
+$ kubectl -n sa-lab set serviceaccount pod/sem-sa app-sa
+error: failed to patch ServiceAccountName Pod "sem-sa" is invalid: spec: Forbidden: pod updates may not change fields other than `spec.containers[*].image`,`spec.initContainers[*].image`,`spec.activeDeadlineSeconds`,`spec.tolerations` (only additions to existing tolerations),`spec.terminationGracePeriodSeconds` (allow it to be set to 1 if it was previously negative)
+$ kubectl -n sa-lab set serviceaccount deployment/web app-sa
+deployment.apps/web serviceaccount updated
+$ kubectl -n sa-lab get pods -l app=web -o jsonpath='{.items[*].spec.serviceAccountName}{"\n"}'
+app-sa
+```
+
+(O `set serviceaccount` no Pod também imprime um diff do `spec`, cortado aqui.)
+
+**Não montar o token**, para Pods que não falam com a API: `automountServiceAccountToken: false` na ServiceAccount ou no Pod. Se os dois disserem coisas diferentes, **vale o do Pod**. No lab, com a ServiceAccount `sem-token` marcada como `false`, o Pod `p1` ficou sem a pasta e o `p2`, com `automountServiceAccountToken: true` no próprio spec, recebeu o token:
+
+```console
+$ kubectl -n sa-lab exec p1 -- ls /var/run/secrets/kubernetes.io/serviceaccount
+ls: cannot access '/var/run/secrets/kubernetes.io/serviceaccount': No such file or directory
+command terminated with exit code 2
+$ kubectl -n sa-lab exec p2 -- ls /var/run/secrets/kubernetes.io/serviceaccount
+ca.crt
+namespace
+token
+```
+
+**Token para usar fora do cluster:** `kubectl create token` emite um token com validade (padrão de 1 hora; `--duration` muda). O conteúdo do token mostra para quem ele foi emitido:
+
+```console
+$ TOKEN=$(kubectl -n sa-lab create token app-sa --duration=10m)
+$ echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -m json.tool
+{
+    "aud": [
+        "https://kubernetes.default.svc.cluster.local"
+    ],
+    "exp": 1792973427,
+    "iat": 1792972827,
+    "iss": "https://kubernetes.default.svc.cluster.local",
+    "jti": "20b5658b-9ce4-485e-a24c-fc7eb29f9d05",
+    "kubernetes.io": {
+        "namespace": "sa-lab",
+        "serviceaccount": {
+            "name": "app-sa",
+            "uid": "c5a48ef3-e21b-457d-929d-d5e055ab3d2f"
+        }
+    },
+    "nbf": 1792972827,
+    "sub": "system:serviceaccount:sa-lab:app-sa"
+}
+```
+
+Para testar esse token com o `kubectl`, use um kubeconfig vazio. Com o kubeconfig do admin, o certificado de cliente dele continua sendo enviado e **vence o `--token`**: o `auth whoami` respondeu `kubernetes-admin`. Do jeito certo:
+
+```console
+$ kubectl --kubeconfig=/dev/null --server=https://10.0.1.4:6443 --certificate-authority=/etc/kubernetes/pki/ca.crt --token="$TOKEN" auth whoami
+ATTRIBUTE                                           VALUE
+Username                                            system:serviceaccount:sa-lab:app-sa
+UID                                                 c5a48ef3-e21b-457d-929d-d5e055ab3d2f
+Groups                                              [system:serviceaccounts system:serviceaccounts:sa-lab system:authenticated]
+Extra: authentication.kubernetes.io/credential-id   [JTI=76356014-3a5c-483c-8c79-065bf6b03a47]
+```
+
+O token que esse `whoami` usou foi emitido logo antes, com o mesmo comando; por isso o `JTI` é outro.
+
+**Token de longa duração**, sem validade, quando um sistema externo precisa: um Secret do tipo `kubernetes.io/service-account-token` com a anotação da ServiceAccount. O controlador preenche `token`, `ca.crt` e `namespace`:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-sa-token
+  namespace: sa-lab
+  annotations:
+    kubernetes.io/service-account.name: app-sa
+type: kubernetes.io/service-account-token
+```
+
+```console
+$ kubectl -n sa-lab get secret app-sa-token
+NAME           TYPE                                  DATA   AGE
+app-sa-token   kubernetes.io/service-account-token   3      2s
+```
+
+Se a anotação aponta para uma ServiceAccount que não existe, o `apply` responde `created`, mas o controlador apaga o Secret em seguida: 3 segundos depois, `kubectl get secret` deu `NotFound`.
+
 ## Na documentação oficial
 
 - **Página:** *Using RBAC Authorization*. Link: <https://kubernetes.io/docs/reference/access-authn-authz/rbac/>
@@ -129,6 +294,13 @@ Use `--dry-run=client -o yaml` quando o enunciado pedir algo que os flags impera
     - `kubectl create role`: seção com os comandos imperativos.
     - `system:serviceaccount`: formato do nome de ServiceAccount.
     - `User-facing roles`: tabela das ClusterRoles padrão (`cluster-admin`, `admin`, `edit`, `view`).
+- **Página:** *Configure Service Accounts for Pods*. Link: <https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/>
+- **Ctrl+F dentro da página:**
+    - `automountServiceAccountToken`: desligar o token montado (na ServiceAccount ou no Pod).
+    - `serviceAccountName`: usar outra ServiceAccount no Pod.
+    - `kubectl create token`: token com validade.
+    - `service-account-token`: Secret com token de longa duração.
+    - `serviceAccountToken`: volume projetado com `audience` e `expirationSeconds` próprios.
 
 ## Pegadinhas da prova
 
@@ -147,6 +319,9 @@ Use `--dry-run=client -o yaml` quando o enunciado pedir algo que os flags impera
 - **apiGroup errado.** `deployments` fica em `apps`, não em `""`. Se `can-i` responder `no` quando deveria ser `yes`, confira o apiGroup com `kubectl api-resources`.
 - **Recurso no singular.** Em YAML o campo `resources` usa o plural minúsculo (`pods`, não `Pod`).
 - **`--serviceaccount` usa `namespace:nome`**, não só o nome. E `--as` usa `system:serviceaccount:namespace:nome`.
+- **`serviceAccountName` de Pod é imutável.** Para trocar, recrie o Pod (`kubectl replace --force -f pod.yaml`) ou mude no Deployment (`kubectl set serviceaccount deployment/<nome> <sa>`).
+- **ServiceAccount inexistente** impede a criação do Pod: `pods "x" is forbidden: error looking up service account sa-lab/nao-existe: serviceaccount "nao-existe" not found`. Crie a ServiceAccount primeiro.
+- **`automountServiceAccountToken` no Pod vence o da ServiceAccount.** Se a questão pede "este Pod não deve ter token", ponha `false` no Pod.
 - **Namespace esquecido** no Role ou no RoleBinding: os objetos vão para `default` e a permissão não vale onde a questão pediu.
 - **Contexto do kubectl.** Toda questão começa com um `kubectl config use-context ...`. Rode antes de qualquer coisa.
 - **PodSecurityPolicy** aparece em material antigo como "controle de acesso de Pods". Foi **removida na v1.25** e substituída por **Pod Security Admission** (labels `pod-security.kubernetes.io/*` no namespace). Não é RBAC.
